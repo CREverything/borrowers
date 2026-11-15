@@ -1,7 +1,9 @@
 import type { Pool, PoolClient } from "pg";
+import { notify, type NotificationKind } from "../notifications/repository.ts";
+import { firstNameOnly } from "../users/profiles.ts";
 import { daysInclusive, type BorrowRequestInput, type EventRequestInput } from "./validation.ts";
 
-export type RequestStatus = "pending" | "approved" | "declined" | "cancelled";
+export type RequestStatus = "pending" | "approved" | "declined" | "cancelled" | "returned";
 
 /** API shape. Matches BorrowRequest in the frontend's src/types.ts. */
 export interface BorrowRequest {
@@ -18,6 +20,19 @@ export interface BorrowRequest {
   totalSwitchies: number;
   status: RequestStatus;
   createdAt: string;
+  /** When the lender approved or declined. */
+  decidedAt: string | null;
+  /** When the lender wants it back. Set on approval. */
+  returnDueAt: string | null;
+  /** When the lender confirmed it came back. */
+  returnedAt: string | null;
+  /** The lender's score for the borrower on this request, 1-5. */
+  borrowerRating: number | null;
+  borrowerRatingComment: string | null;
+  /** Whether the borrower has reviewed this listing (one review per listing). */
+  reviewed: boolean;
+  /** The borrower's average score from lenders, so lenders can decide. */
+  borrowerScore: { average: number; count: number } | null;
   eventRequestId?: string;
 }
 
@@ -72,13 +87,27 @@ interface RequestRow {
   total_switchies: number;
   status: RequestStatus;
   created_at: Date;
+  decided_at: Date | null;
+  return_due_at: Date | null;
+  returned_at: Date | null;
+  borrower_rating: number | null;
+  borrower_rating_comment: string | null;
+  reviewed: boolean;
+  borrower_score_avg: string | null;
+  borrower_score_count: string;
   event_request_id: string | null;
 }
 
 const SELECT_REQUEST = `
   select r.id::text, r.item_id, i.title as item_title, r.lender_id, l.display_name as lender_name,
          r.borrower_id, b.display_name as borrower_name, r.start_date, r.end_date, r.days,
-         r.total_switchies, r.status, r.created_at, r.event_request_id::text
+         r.total_switchies, r.status, r.created_at, r.decided_at, r.return_due_at, r.returned_at,
+         r.borrower_rating, r.borrower_rating_comment, r.event_request_id::text,
+         exists (select 1 from reviews v where v.item_id = r.item_id and v.borrower_id = r.borrower_id) as reviewed,
+         (select round(avg(x.borrower_rating), 1) from borrow_requests x
+           where x.borrower_id = r.borrower_id and x.borrower_rating is not null) as borrower_score_avg,
+         (select count(*) from borrow_requests x
+           where x.borrower_id = r.borrower_id and x.borrower_rating is not null) as borrower_score_count
   from borrow_requests r
   join items i on i.id = r.item_id
   left join users l on l.clerk_id = r.lender_id
@@ -90,17 +119,59 @@ const toRequest = (row: RequestRow): BorrowRequest => ({
   itemId: row.item_id,
   itemTitle: row.item_title,
   lenderId: row.lender_id,
-  lenderName: row.lender_name ?? "",
+  lenderName: firstNameOnly(row.lender_name),
   borrowerId: row.borrower_id,
-  borrowerName: row.borrower_name ?? "",
+  borrowerName: firstNameOnly(row.borrower_name),
   startDate: row.start_date,
   endDate: row.end_date,
   days: row.days,
   totalSwitchies: row.total_switchies,
   status: row.status,
   createdAt: row.created_at.toISOString(),
+  decidedAt: row.decided_at?.toISOString() ?? null,
+  returnDueAt: row.return_due_at?.toISOString() ?? null,
+  returnedAt: row.returned_at?.toISOString() ?? null,
+  borrowerRating: row.borrower_rating,
+  borrowerRatingComment: row.borrower_rating_comment,
+  reviewed: row.reviewed,
+  borrowerScore:
+    row.borrower_score_avg !== null
+      ? { average: Number(row.borrower_score_avg), count: Number(row.borrower_score_count) }
+      : null,
   ...(row.event_request_id ? { eventRequestId: row.event_request_id } : {}),
 });
+
+/** Facts about a request for a notification. The browser phrases them. */
+export function notificationData(r: BorrowRequest, extra: Record<string, unknown> = {}) {
+  return {
+    itemTitle: r.itemTitle,
+    borrowerName: r.borrowerName,
+    lenderName: r.lenderName,
+    startDate: r.startDate,
+    endDate: r.endDate,
+    totalSwitchies: r.totalSwitchies,
+    returnDueAt: r.returnDueAt,
+    ...extra,
+  };
+}
+
+/** Tells the other side of a request that something happened. */
+export async function notifyAbout(
+  db: Pool | PoolClient,
+  r: BorrowRequest,
+  kind: NotificationKind,
+  to: "borrower" | "lender",
+  extra: Record<string, unknown> = {},
+) {
+  await notify(db, {
+    userId: to === "borrower" ? r.borrowerId : r.lenderId,
+    role: to,
+    kind,
+    data: notificationData(r, extra),
+    requestId: r.id,
+    itemId: r.itemId,
+  });
+}
 
 /** The borrower's own requests, newest first. */
 export async function listForBorrower(pool: Pool, borrowerId: string) {
@@ -261,7 +332,7 @@ async function insertRequest(
   return result.rows[0].id;
 }
 
-async function getRequest(pool: Pool | PoolClient, id: string): Promise<BorrowRequest> {
+export async function getRequest(pool: Pool | PoolClient, id: string): Promise<BorrowRequest> {
   const result = await pool.query<RequestRow>(`${SELECT_REQUEST} where r.id = $1`, [id]);
   return toRequest(result.rows[0]);
 }
@@ -270,7 +341,9 @@ export async function createBorrowRequest(pool: Pool, borrowerId: string, input:
   const id = await inTransaction(pool, async (client) => {
     const prepared = await prepare(client, borrowerId, input.itemId, input.startDate, input.endDate);
     await assertCanAfford(client, borrowerId, prepared.total);
-    return insertRequest(client, borrowerId, prepared, input.startDate, input.endDate, null);
+    const newId = await insertRequest(client, borrowerId, prepared, input.startDate, input.endDate, null);
+    await notifyAbout(client, await getRequest(client, newId), "request_received", "lender");
+    return newId;
   });
   return getRequest(pool, id);
 }
@@ -290,7 +363,10 @@ export async function createEventRequest(pool: Pool, borrowerId: string, input: 
       [borrowerId, input.eventTitle, input.description, input.startDate, input.endDate],
     );
     for (const p of prepared) {
-      await insertRequest(client, borrowerId, p, input.startDate, input.endDate, event.rows[0].id);
+      const newId = await insertRequest(client, borrowerId, p, input.startDate, input.endDate, event.rows[0].id);
+      await notifyAbout(client, await getRequest(client, newId), "request_received", "lender", {
+        eventTitle: input.eventTitle,
+      });
     }
     return event.rows[0].id;
   });
@@ -306,7 +382,9 @@ export async function cancelRequest(pool: Pool, borrowerId: string, id: number):
     [id, borrowerId],
   );
   if (!result.rowCount) await explainMiss(pool, id, "borrower_id", borrowerId);
-  return getRequest(pool, String(id));
+  const request = await getRequest(pool, String(id));
+  await notifyAbout(pool, request, "request_cancelled", "lender");
+  return request;
 }
 
 /** Borrower cancels an event request and every item request in it that's still pending. */
@@ -327,11 +405,14 @@ export async function cancelEventRequest(pool: Pool, borrowerId: string, id: num
       if (row.borrower_id !== borrowerId) throw new RequestError(403, "You can only cancel your own requests.");
       throw new RequestError(409, "This event request was already cancelled.");
     }
-    await client.query(
+    const cancelled = await client.query<{ id: string }>(
       `update borrow_requests set status = 'cancelled', updated_at = now()
-       where event_request_id = $1 and status = 'pending'`,
+       where event_request_id = $1 and status = 'pending' returning id::text`,
       [id],
     );
+    for (const row of cancelled.rows) {
+      await notifyAbout(client, await getRequest(client, row.id), "request_cancelled", "lender");
+    }
   });
 }
 
@@ -358,6 +439,8 @@ export async function decideRequest(
   lenderId: string,
   id: number,
   decision: "approve" | "decline",
+  /** Required to approve: when the lender wants the item back. */
+  returnDueAt?: string,
 ): Promise<BorrowRequest> {
   await inTransaction(pool, async (client) => {
     const found = await client.query<{
@@ -379,9 +462,15 @@ export async function decideRequest(
     if (request.status !== "pending") throw new RequestError(409, `This request is already ${request.status}.`);
 
     if (decision === "decline") {
-      await client.query("update borrow_requests set status = 'declined', updated_at = now() where id = $1", [id]);
+      await client.query(
+        "update borrow_requests set status = 'declined', decided_at = now(), updated_at = now() where id = $1",
+        [id],
+      );
+      await notifyAbout(client, await getRequest(client, String(id)), "request_declined", "borrower");
       return;
     }
+
+    assertReturnTime(returnDueAt, request.start_date, request.end_date);
 
     // Serialise approvals for the same item.
     const item = await client.query<{ title: string }>("select title from items where id = $1 for update", [
@@ -406,16 +495,56 @@ export async function decideRequest(
       request.lender_id,
       request.total_switchies,
     ]);
-    await client.query("update borrow_requests set status = 'approved', updated_at = now() where id = $1", [id]);
+    await client.query(
+      `update borrow_requests set status = 'approved', decided_at = now(), return_due_at = $2, updated_at = now()
+       where id = $1`,
+      [id, returnDueAt],
+    );
+    await notifyAbout(client, await getRequest(client, String(id)), "request_approved", "borrower");
   });
   return getRequest(pool, String(id));
 }
 
+const DAY_MS = 86_400_000;
+
+/**
+ * A return time must be a real moment, not in the past, and between the start
+ * of the borrow period and the day after it ends. One day of slack either side
+ * covers the lender's time zone.
+ */
+export function assertReturnTime(value: unknown, startDate: string, endDate: string): asserts value is string {
+  const time = typeof value === "string" ? Date.parse(value) : NaN;
+  if (Number.isNaN(time)) throw new RequestError(400, "Choose when you want the item back.");
+  if (time < Date.now() - 5 * 60_000) throw new RequestError(400, "The return time can't be in the past.");
+  const earliest = Date.parse(`${startDate}T00:00:00Z`) - DAY_MS;
+  const latest = Date.parse(`${endDate}T00:00:00Z`) + 2 * DAY_MS;
+  if (time < earliest || time > latest) {
+    throw new RequestError(400, "Pick a return time within the borrowing dates.");
+  }
+}
+
 export async function getAccount(pool: Pool, userId: string) {
-  const result = await pool.query<{ display_name: string; switchies_balance: number }>(
-    "select display_name, switchies_balance from users where clerk_id = $1",
+  const result = await pool.query<{
+    display_name: string;
+    switchies_balance: number;
+    score_avg: string | null;
+    score_count: string;
+  }>(
+    `select u.display_name, u.switchies_balance,
+            (select round(avg(borrower_rating), 1) from borrow_requests
+              where borrower_id = u.clerk_id and borrower_rating is not null) as score_avg,
+            (select count(*) from borrow_requests
+              where borrower_id = u.clerk_id and borrower_rating is not null) as score_count
+     from users u where u.clerk_id = $1`,
     [userId],
   );
   const row = result.rows[0];
-  return { userId, displayName: row?.display_name ?? "", switchiesBalance: row?.switchies_balance ?? 0 };
+  return {
+    userId,
+    displayName: firstNameOnly(row?.display_name),
+    switchiesBalance: row?.switchies_balance ?? 0,
+    /** The average score lenders have given this user as a borrower. */
+    borrowerScore:
+      row && row.score_avg !== null ? { average: Number(row.score_avg), count: Number(row.score_count) } : null,
+  };
 }

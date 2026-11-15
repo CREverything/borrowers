@@ -2,7 +2,8 @@ import { Coins, LogIn, Mail, ShieldCheck, ShieldQuestion } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAuthState, type AuthUser } from "../auth/AuthContext";
 import { ProfileAvatar } from "../components/UserMenu";
-import { useBalance } from "../hooks/useRequests";
+import { Stars } from "../components/StarRating";
+import { useBalance, useBorrowerScore } from "../hooks/useRequests";
 import { navigate, paths } from "../router";
 import { authedFetch } from "../services/api";
 
@@ -62,6 +63,7 @@ function Profile({ user }: { user: AuthUser }) {
   const { signOut, openAccountSettings } = useAuthState();
   const since = memberSince(user.createdAt);
   const balance = useBalance();
+  const score = useBorrowerScore();
 
   return (
     <div className="container page page--narrow">
@@ -76,6 +78,23 @@ function Profile({ user }: { user: AuthUser }) {
             </p>
           )}
           {since && <p className="muted small">Member since {since}</p>}
+          <p className="profile__score">
+            {score ? (
+              <>
+                <Stars value={score.average} />
+                <strong>{score.average.toFixed(1)}</strong>
+                <span className="muted small">
+                  borrower rating from {score.count}{" "}
+                  {score.count === 1 ? "lender" : "lenders"}
+                </span>
+              </>
+            ) : (
+              <span className="muted small">
+                No borrower rating yet. Lenders can score you after you return
+                something.
+              </span>
+            )}
+          </p>
         </div>
       </header>
 

@@ -67,9 +67,12 @@ end $$;
 create index if not exists items_category_idx on items (category);
 create index if not exists items_lender_id_idx on items (lender_id);
 
--- Switchies balance. Every account starts with 120; the database refuses to
+-- Switchies balance. Every account starts with 5; the database refuses to
 -- let it go below zero, so an approval can never overdraw a borrower.
-alter table users add column if not exists switchies_balance integer not null default 120;
+alter table users add column if not exists switchies_balance integer not null default 5;
+-- The line above does nothing once the column exists, so set the default
+-- explicitly too. Only affects accounts created afterwards.
+alter table users alter column switchies_balance set default 5;
 
 do $$
 begin
@@ -119,3 +122,60 @@ create index if not exists borrow_requests_borrower_idx on borrow_requests (borr
 create index if not exists borrow_requests_lender_idx on borrow_requests (lender_id);
 create index if not exists borrow_requests_item_idx on borrow_requests (item_id, status);
 create index if not exists event_requests_borrower_idx on event_requests (borrower_id);
+
+-- Request lifecycle: when the lender decided, when they want it back, and
+-- when they confirmed it came back. An early return is fine.
+alter table borrow_requests add column if not exists decided_at timestamptz;
+alter table borrow_requests add column if not exists return_due_at timestamptz;
+alter table borrow_requests add column if not exists returned_at timestamptz;
+-- The lender's score for the borrower, given when (or after) marking it returned.
+alter table borrow_requests add column if not exists borrower_rating smallint;
+alter table borrow_requests add column if not exists borrower_rating_comment text;
+
+do $$
+begin
+  -- Allow the 'returned' status. Recreated by name, so this is safe to rerun.
+  alter table borrow_requests drop constraint if exists borrow_requests_status_check;
+  alter table borrow_requests add constraint borrow_requests_status_check
+    check (status in ('pending', 'approved', 'declined', 'cancelled', 'returned'));
+
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'borrow_requests_borrower_rating_check' and conrelid = 'borrow_requests'::regclass
+  ) then
+    alter table borrow_requests add constraint borrow_requests_borrower_rating_check
+      check (borrower_rating between 1 and 5
+             and (borrower_rating_comment is null or length(borrower_rating_comment) <= 500));
+  end if;
+end $$;
+
+-- A borrower's review of a listing. One per borrower per listing, only after
+-- a request for it was returned (checked by the API).
+create table if not exists reviews (
+  id bigint generated always as identity primary key,
+  item_id integer not null references items (id),
+  borrower_id text not null references users (clerk_id),
+  request_id bigint not null references borrow_requests (id),
+  rating smallint not null check (rating between 1 and 5),
+  comment text not null default '' check (length(comment) <= 1000),
+  created_at timestamptz not null default now(),
+  unique (item_id, borrower_id)
+);
+
+create index if not exists reviews_item_idx on reviews (item_id, created_at desc);
+
+-- In-app notifications. `data` holds the facts (names, dates, times) so the
+-- browser can phrase them and show times in the reader's own time zone.
+create table if not exists notifications (
+  id bigint generated always as identity primary key,
+  user_id text not null references users (clerk_id),
+  kind text not null,
+  role text not null check (role in ('borrower', 'lender')),
+  data jsonb not null default '{}'::jsonb,
+  request_id bigint references borrow_requests (id),
+  item_id integer references items (id),
+  read_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists notifications_user_idx on notifications (user_id, created_at desc);

@@ -25,6 +25,11 @@ async function main() {
     if (users.rows[0].exists) {
       const n = await pool.query<{ n: string }>("select count(*) as n from users");
       console.log(`Users table: ${n.rows[0].n} profiles`);
+      const balance = await pool.query<{ column_default: string | null }>(
+        `select column_default from information_schema.columns
+         where table_schema = 'public' and table_name = 'users' and column_name = 'switchies_balance'`,
+      );
+      if (balance.rows[0]) console.log(`  Starting Switchies balance: ${balance.rows[0].column_default}`);
     } else {
       console.log("Users table: missing");
     }

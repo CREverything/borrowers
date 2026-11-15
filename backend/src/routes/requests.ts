@@ -11,6 +11,15 @@ import {
   listForLender,
   RequestError,
 } from "../requests/repository.ts";
+import { listNotifications, markRead } from "../notifications/repository.ts";
+import {
+  createReview,
+  listReviews,
+  markReturned,
+  parseScore,
+  rateBorrower,
+  setReturnTime,
+} from "../requests/lifecycle.ts";
 import { parseBorrowRequest, parseEventRequest, parseId } from "../requests/validation.ts";
 
 /**
@@ -49,9 +58,68 @@ export function createRequestsRouter(protect: RequestHandler[]) {
     router.post(`/requests/:id/${decision}`, ...guard, async (req, res) => {
       const id = parseId(req.params.id);
       if (id === null) return sendError(res, new RequestError(404, "Request not found."));
-      await respond(res, 200, () => decideRequest(getPool(), authenticatedUserId(res), id, decision));
+      // Approving needs the time the lender wants the item back.
+      const returnDueAt = typeof req.body?.returnDueAt === "string" ? req.body.returnDueAt : undefined;
+      await respond(res, 200, () =>
+        decideRequest(getPool(), authenticatedUserId(res), id, decision, returnDueAt),
+      );
     });
   }
+
+  /** POST /api/requests/:id/return-time: lender changes when they want it back. */
+  router.post("/requests/:id/return-time", ...guard, async (req, res) => {
+    const id = parseId(req.params.id);
+    if (id === null) return sendError(res, new RequestError(404, "Request not found."));
+    await respond(res, 200, () => setReturnTime(getPool(), authenticatedUserId(res), id, req.body?.returnDueAt));
+  });
+
+  /** POST /api/requests/:id/returned: lender confirms it's back, optionally scoring the borrower. */
+  router.post("/requests/:id/returned", ...guard, async (req, res) => {
+    const id = parseId(req.params.id);
+    if (id === null) return sendError(res, new RequestError(404, "Request not found."));
+    await respond(res, 200, () =>
+      markReturned(getPool(), authenticatedUserId(res), id, parseScore(req.body, 500, false)),
+    );
+  });
+
+  /** POST /api/requests/:id/rate-borrower: lender scores the borrower after the return. */
+  router.post("/requests/:id/rate-borrower", ...guard, async (req, res) => {
+    const id = parseId(req.params.id);
+    if (id === null) return sendError(res, new RequestError(404, "Request not found."));
+    await respond(res, 200, () =>
+      rateBorrower(getPool(), authenticatedUserId(res), id, parseScore(req.body, 500, true)!),
+    );
+  });
+
+  /** GET /api/items/:id/reviews: public reviews for a listing. */
+  router.get("/items/:id/reviews", async (req, res) => {
+    const id = parseId(req.params.id);
+    if (id === null) return sendError(res, new RequestError(404, "Listing not found."));
+    res.set("Cache-Control", "no-cache");
+    res.json(await listReviews(getPool(), id));
+  });
+
+  /** POST /api/items/:id/reviews: borrower reviews a listing they've returned. One per listing. */
+  router.post("/items/:id/reviews", ...guard, async (req, res) => {
+    const id = parseId(req.params.id);
+    if (id === null) return sendError(res, new RequestError(404, "Listing not found."));
+    await respond(res, 201, () =>
+      createReview(getPool(), authenticatedUserId(res), id, parseScore(req.body, 1000, true)!),
+    );
+  });
+
+  /** GET /api/notifications: my latest notifications and unread count. */
+  router.get("/notifications", ...guard, async (_req, res) => {
+    res.json(await listNotifications(getPool(), authenticatedUserId(res)));
+  });
+
+  /** POST /api/notifications/read: mark some ({ ids }) or all ({}) as read. */
+  router.post("/notifications/read", ...guard, async (req, res) => {
+    const raw: unknown = req.body?.ids;
+    const ids = Array.isArray(raw) ? raw.filter((x): x is string => typeof x === "string" && /^\d+$/.test(x)) : undefined;
+    await markRead(getPool(), authenticatedUserId(res), ids);
+    res.json({ ok: true });
+  });
 
   /** GET /api/incoming-requests: requests for my listings. */
   router.get("/incoming-requests", ...guard, async (_req, res) => {

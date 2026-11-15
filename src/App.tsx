@@ -9,6 +9,7 @@ import EditListingPage from "./pages/EditListingPage";
 import ItemDetailPage from "./pages/ItemDetailPage";
 import LendPage from "./pages/LendPage";
 import MyListingsPage from "./pages/MyListingsPage";
+import NotificationsPage from "./pages/NotificationsPage";
 import ProfilePage from "./pages/ProfilePage";
 import RequestsPage from "./pages/RequestsPage";
 import SwitchiesPage from "./pages/SwitchiesPage";
@@ -47,6 +48,8 @@ export default function App() {
         return <ProfilePage />;
       case "lend":
         return <LendPage />;
+      case "notifications":
+        return <NotificationsPage />;
       case "my-listings":
         return <MyListingsPage createdId={r.createdId} />;
       case "edit-listing":

@@ -41,10 +41,7 @@ export async function ensureUserProfile(
   known.add(clerkId);
 }
 
-/** "Maya Rodriguez" becomes "Maya R.", matching how lenders appear in the marketplace. */
-export function shortDisplayName(first?: string | null, last?: string | null, username?: string | null): string {
-  const firstName = first?.trim();
-  const lastInitial = last?.trim().charAt(0);
-  if (firstName) return lastInitial ? `${firstName} ${lastInitial.toUpperCase()}.` : firstName;
-  return username?.trim() ?? "";
+/** Return only the first whitespace-delimited part of a stored profile name. */
+export function firstNameOnly(name?: string | null): string {
+  return name?.trim().split(/\s+/)[0] ?? "";
 }

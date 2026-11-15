@@ -63,7 +63,7 @@ export class RequestError extends Error {
   }
 }
 
-async function call<T>(path: string, getToken: GetToken, init: RequestInit = {}): Promise<T> {
+export async function call<T>(path: string, getToken: GetToken, init: RequestInit = {}): Promise<T> {
   let response: Response;
   try {
     response = await authedFetch(path, getToken, {
@@ -151,10 +151,52 @@ export async function cancelEventRequest(getToken: GetToken, id: string) {
   await afterChange(getToken);
 }
 
-/** Lender approves: the dates become booked and the Switchies move. */
-export async function approveRequest(getToken: GetToken, id: string) {
-  await call(`/api/requests/${encodeURIComponent(id)}/approve`, getToken, { method: "POST" });
+/** Lender approves with the time they want it back: the dates get booked and the Switchies move. */
+export async function approveRequest(getToken: GetToken, id: string, returnDueAt: string) {
+  await call(`/api/requests/${encodeURIComponent(id)}/approve`, getToken, {
+    method: "POST",
+    body: JSON.stringify({ returnDueAt }),
+  });
   await afterChange(getToken, { items: true, balance: true });
+}
+
+export async function setReturnTime(getToken: GetToken, id: string, returnDueAt: string) {
+  await call(`/api/requests/${encodeURIComponent(id)}/return-time`, getToken, {
+    method: "POST",
+    body: JSON.stringify({ returnDueAt }),
+  });
+  await afterChange(getToken);
+}
+
+export interface Score {
+  rating: number;
+  comment: string;
+}
+
+/** Lender confirms it's back (early is fine), optionally scoring the borrower. */
+export async function markReturned(getToken: GetToken, id: string, score: Score | null) {
+  await call(`/api/requests/${encodeURIComponent(id)}/returned`, getToken, {
+    method: "POST",
+    body: JSON.stringify(score ?? {}),
+  });
+  await afterChange(getToken, { items: true });
+}
+
+export async function rateBorrower(getToken: GetToken, id: string, score: Score) {
+  await call(`/api/requests/${encodeURIComponent(id)}/rate-borrower`, getToken, {
+    method: "POST",
+    body: JSON.stringify(score),
+  });
+  await afterChange(getToken);
+}
+
+/** Borrower reviews a listing they've returned. One review per listing. */
+export async function reviewListing(getToken: GetToken, itemId: number, score: Score) {
+  await call(`/api/items/${itemId}/reviews`, getToken, {
+    method: "POST",
+    body: JSON.stringify(score),
+  });
+  await afterChange(getToken, { items: true });
 }
 
 export async function declineRequest(getToken: GetToken, id: string) {

@@ -15,7 +15,7 @@ import {
   type PendingIntent,
 } from "../auth/pendingAction";
 import AvailabilityBadge from "../components/AvailabilityBadge";
-import DateRangeFields from "../components/DateRangeFields";
+import RangeCalendar from "../components/RangeCalendar";
 import { EVENT_PLACEHOLDER } from "../components/EventPlannerBanner";
 import ItemIllustration from "../components/ItemIllustration";
 import ItemsStatus from "../components/ItemsStatus";
@@ -219,8 +219,19 @@ function PlanResults({
   }, 0);
   const lenderCount = new Set(selectedItems.map((item) => item.lenderId)).size;
   // Date problems apply to every item, so report them once instead of per item.
-  const dateError =
-    !startDate || !endDate ? "Choose the dates you need everything for." : null;
+  const dateError = !startDate
+    ? "Choose the first day you need everything."
+    : !endDate
+      ? "Now choose the last day you need everything."
+      : null;
+  // Block days when any selected item is already lent out, and keep the range
+  // within the shortest borrowing limit among them.
+  const bookedForSelection = selectedItems.flatMap(
+    (item) => item.availability.bookedRanges,
+  );
+  const maxDaysForSelection = selectedItems.length
+    ? Math.min(...selectedItems.map((item) => item.availability.maxBorrowDays))
+    : 45;
 
   const handleSubmit = async () => {
     if (!valid) return;
@@ -365,16 +376,20 @@ function PlanResults({
                 the request now.
               </p>
             )}
-            <DateRangeFields
+            <RangeCalendar
               start={startDate}
               end={endDate}
               min={today}
+              max={addDays(today, 365)}
+              booked={bookedForSelection}
+              maxDays={maxDaysForSelection}
               onChange={(start, end) => {
                 setStartDate(start);
                 setEndDate(end);
+                setServerError(null);
               }}
             />
-            {dateError && <p className="form-error">{dateError}</p>}
+            {dateError && <p className="muted small">{dateError}</p>}
 
             {selectedItems.length === 0 ? (
               <p className="muted small">

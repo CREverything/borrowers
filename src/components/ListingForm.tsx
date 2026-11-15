@@ -1,10 +1,11 @@
-import { Coins, ImagePlus } from "lucide-react";
+import { Coins, ImagePlus, Map as MapIcon, MapPin, Type } from "lucide-react";
 import {
   useState,
   type FormEvent,
   type KeyboardEvent,
   type ReactNode,
 } from "react";
+import { findCampusPlace } from "../data/campusPlaces";
 import { categories } from "../data/categories";
 import type {
   FieldErrors,
@@ -12,11 +13,14 @@ import type {
   ListingStatus,
 } from "../services/listingsApi";
 import type { CategoryId, Item, ItemCondition } from "../types";
+import CampusMap from "./CampusMap";
 import ItemCard from "./ItemCard";
 import { iconChoices } from "./ItemIllustration";
 
 /** Same limits as the server's validation (backend/src/items/validation.ts). */
 export const LIMITS = {
+  /** Every text field needs at least this many characters. */
+  minText: 10,
   title: 120,
   description: 1000,
   location: 80,
@@ -101,6 +105,14 @@ function stepWhole(
   );
 }
 
+/** "4/120 · at least 10" until the minimum is met, then just "12/120". */
+function charCount(text: string, max: number) {
+  const length = text.trim().length;
+  return length < LIMITS.minText
+    ? `${length}/${max} · at least ${LIMITS.minText}`
+    : `${length}/${max}`;
+}
+
 const parseKeywords = (text: string) => [
   ...new Set(
     text
@@ -130,14 +142,22 @@ export function validateDraft(draft: ListingDraft): {
   const errors: FieldErrors = {};
   const title = draft.title.trim();
   if (!title) errors.title = "Give your item a name.";
+  else if (title.length < LIMITS.minText)
+    errors.title = `Use at least ${LIMITS.minText} characters, like "Graphing calculator".`;
   else if (title.length > LIMITS.title)
     errors.title = `Keep the name to ${LIMITS.title} characters.`;
-  if (draft.description.trim().length > LIMITS.description)
+  const description = draft.description.trim();
+  if (!description) errors.description = "Describe your item.";
+  else if (description.length < LIMITS.minText)
+    errors.description = `Add a bit more detail (at least ${LIMITS.minText} characters).`;
+  else if (description.length > LIMITS.description)
     errors.description = `Keep the description to ${LIMITS.description} characters.`;
   if (!draft.category) errors.category = "Choose a category.";
   if (!draft.condition) errors.condition = "Choose the item's condition.";
   const location = draft.location.trim();
-  if (!location) errors.location = "Add an approximate pickup spot.";
+  if (!location) errors.location = "Pick a spot on the map or type one.";
+  else if (location.length < LIMITS.minText)
+    errors.location = `Use at least ${LIMITS.minText} characters, like "North Hall lobby".`;
   else if (location.length > LIMITS.location)
     errors.location = `Keep the location to ${LIMITS.location} characters.`;
   const price = wholeNumber(
@@ -200,6 +220,10 @@ export default function ListingForm({
   previewId = 0,
 }: ListingFormProps) {
   const [draft, setDraft] = useState(initial);
+  // Start on the map unless an existing location was typed by hand.
+  const [locationMode, setLocationMode] = useState<"map" | "text">(() =>
+    !initial.location.trim() || findCampusPlace(initial.location) ? "map" : "text",
+  );
   const [touched, setTouched] = useState(false);
   const [saving, setSaving] = useState(false);
   const { errors: clientErrors, fields } = validateDraft(draft);
@@ -262,7 +286,7 @@ export default function ListingForm({
           id="title"
           label="Item name"
           error={errors.title}
-          hint={`${draft.title.trim().length}/${LIMITS.title}`}
+          hint={charCount(draft.title, LIMITS.title)}
         >
           <input
             id="title"
@@ -279,9 +303,8 @@ export default function ListingForm({
         <Field
           id="description"
           label="Description"
-          optional
           error={errors.description}
-          hint={`${draft.description.trim().length}/${LIMITS.description}`}
+          hint={charCount(draft.description, LIMITS.description)}
         >
           <textarea
             id="description"
@@ -326,25 +349,83 @@ export default function ListingForm({
           ))}
         </ChoiceGroup>
 
-        <Field
-          id="location"
-          label="Pickup spot"
-          error={errors.location}
-          hint="Approximate only, like a building or lobby. Never your room number."
+        <fieldset
+          className="form-field choice-group"
+          aria-describedby={errors.location ? "location-error" : "location-hint"}
         >
-          <input
-            id="location"
-            type="text"
-            value={draft.location}
-            maxLength={LIMITS.location}
-            placeholder="E.g., Dirty Birds"
-            aria-invalid={!!errors.location}
-            aria-describedby={
-              errors.location ? "location-error" : "location-hint"
-            }
-            onChange={(e) => set("location")(e.target.value)}
-          />
-        </Field>
+          <legend className="field__label">Pickup spot</legend>
+          <div className="segmented" role="group" aria-label="How to choose the pickup spot">
+            <button
+              type="button"
+              className={locationMode === "map" ? "segmented__on" : undefined}
+              aria-pressed={locationMode === "map"}
+              onClick={() => setLocationMode("map")}
+            >
+              <MapIcon size={16} aria-hidden="true" />
+              Campus map
+            </button>
+            <button
+              type="button"
+              className={locationMode === "text" ? "segmented__on" : undefined}
+              aria-pressed={locationMode === "text"}
+              onClick={() => setLocationMode("text")}
+            >
+              <Type size={16} aria-hidden="true" />
+              Type a spot
+            </button>
+          </div>
+
+          {locationMode === "map" ? (
+            <>
+              <CampusMap
+                value={draft.location}
+                invalid={!!errors.location}
+                onChange={(name) => set("location")(name)}
+              />
+              <ul className="map-legend" aria-hidden="true">
+                <li><i className="map-legend__road" /> Road</li>
+                <li><i className="map-legend__walk" /> Walkway</li>
+                <li><i className="map-legend__rail" /> Trolley</li>
+                <li><i className="map-legend__green" /> Green space</li>
+              </ul>
+              <p className="campus-map__chosen" aria-live="polite">
+                {findCampusPlace(draft.location) ? (
+                  <>
+                    <MapPin size={16} aria-hidden="true" />
+                    Pickup at <strong>{draft.location}</strong>
+                  </>
+                ) : (
+                  "Tap the spot closest to where you'll hand it over."
+                )}
+              </p>
+            </>
+          ) : (
+            <div className="field">
+              <label className="sr-only" htmlFor="location">
+                Pickup spot
+              </label>
+              <input
+                id="location"
+                type="text"
+                value={draft.location}
+                maxLength={LIMITS.location}
+                placeholder="E.g., Dirty Birds"
+                aria-invalid={!!errors.location}
+                onChange={(e) => set("location")(e.target.value)}
+              />
+            </div>
+          )}
+
+          {errors.location ? (
+            <p className="form-error" id="location-error">
+              {errors.location}
+            </p>
+          ) : (
+            <p className="field__hint" id="location-hint">
+              Approximate only, like a building or lobby. Never your room number.
+            </p>
+          )}
+        </fieldset>
 
         <div className="listing-form__row">
           <Field

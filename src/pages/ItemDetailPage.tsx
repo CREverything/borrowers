@@ -15,12 +15,13 @@ import { useAuthState } from "../auth/AuthContext";
 import { clearPendingIntent, peekPendingIntent } from "../auth/pendingAction";
 import AvailabilityBadge from "../components/AvailabilityBadge";
 import ItemIllustration from "../components/ItemIllustration";
+import ItemReviews from "../components/ItemReviews";
 import ItemsStatus from "../components/ItemsStatus";
 import RangeCalendar from "../components/RangeCalendar";
 import { useGatedPlaceholder, useRequireAuth } from "../components/LoginPrompt";
 import RatingInline from "../components/RatingInline";
 import { getCategoryLabel } from "../data/categories";
-import { getUser } from "../data/users";
+import { firstNameOnly, getUser } from "../data/users";
 import { useItems } from "../hooks/useItems";
 import { useBalance, useRequests } from "../hooks/useRequests";
 import { getAvailability, upcomingBookings } from "../lib/availability";
@@ -31,11 +32,7 @@ import { createBorrowRequest, RequestError } from "../services/requestStore";
 import type { BorrowRequest, Item } from "../types";
 
 const initials = (name: string) =>
-  name
-    .split(/\s+/)
-    .map((part) => part[0])
-    .join("")
-    .slice(0, 2);
+  firstNameOnly(name)[0]?.toUpperCase() ?? "";
 
 export default function ItemDetailPage({ id }: { id: number }) {
   const { getItem, status, reload } = useItems();
@@ -82,7 +79,9 @@ function ItemDetail({ item }: { item: Item }) {
   ).length;
   const lender = getUser(item.lenderId);
   const lenderName =
-    item.lenderName?.trim() || lender?.displayName || "the lender";
+    firstNameOnly(item.lenderName) ||
+    firstNameOnly(lender?.displayName) ||
+    "the lender";
   const today = todayISO();
   const availability = getAvailability(item, today);
   const bookings = upcomingBookings(item, today);
@@ -124,7 +123,11 @@ function ItemDetail({ item }: { item: Item }) {
     try {
       // The server prices the request itself and re-checks the dates.
       setSubmitted(
-        await createBorrowRequest(getToken, { itemId: item.id, startDate, endDate }),
+        await createBorrowRequest(getToken, {
+          itemId: item.id,
+          startDate,
+          endDate,
+        }),
       );
     } catch (error) {
       setServerError((error as RequestError).message);
@@ -216,6 +219,7 @@ function ItemDetail({ item }: { item: Item }) {
                 </p>
               </div>
             </div>
+            <ItemReviews item={item} />
           </div>
         </div>
 
@@ -246,7 +250,10 @@ function ItemDetail({ item }: { item: Item }) {
               {pendingForItem > 0 && (
                 <a className="owner-panel__review" href={paths.lendingRequests}>
                   <Inbox size={16} aria-hidden="true" />
-                  Review {pendingForItem === 1 ? "request" : `${pendingForItem} requests`}
+                  Review{" "}
+                  {pendingForItem === 1
+                    ? "request"
+                    : `${pendingForItem} requests`}
                 </a>
               )}
               <div className="owner-panel__actions">
@@ -327,10 +334,10 @@ function ItemDetail({ item }: { item: Item }) {
                 <dl className="quote">
                   <div>
                     <dt>
-                      {item.switchiesPerDay} swi × {quote.days}{" "}
+                      {item.switchiesPerDay} Swi. × {quote.days}{" "}
                       {quote.days === 1 ? "day" : "days"}
                     </dt>
-                    <dd>{quote.totalSwitchies} swi</dd>
+                    <dd>{quote.totalSwitchies} Swi.</dd>
                   </div>
                   <div className="quote__total">
                     <dt>Total</dt>

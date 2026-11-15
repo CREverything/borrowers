@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { LOGIN_PATH, navigate, SIGNUP_PATH } from "../router";
+import { firstNameOnly } from "../data/users";
 import { clerkAppearance } from "./appearance";
 import { clerkLocalization } from "./localization";
 
@@ -107,7 +108,10 @@ function ClerkBridge({ children }: { children: ReactNode }) {
       status === "signed-in" && user
         ? {
             id: user.id,
-            name: user.fullName || user.username || email?.split("@")[0] || "Borrower",
+            name:
+              firstNameOnly(user.firstName) ||
+              firstNameOnly(user.fullName) ||
+              "Borrower",
             email,
             imageUrl: user.hasImage ? user.imageUrl : null,
             createdAt: user.createdAt ?? null,

@@ -15,6 +15,7 @@ export type Route =
   | { name: "requests"; tab: "borrowing" | "lending" }
   | { name: "profile" }
   | { name: "lend" }
+  | { name: "notifications" }
   | { name: "my-listings"; createdId: number | null }
   | { name: "edit-listing"; id: number }
   /** returnTo is null when the URL has no ?return= (one of Clerk's own steps). */
@@ -35,6 +36,7 @@ export const paths = {
   lendingRequests: "/#/requests?tab=lending",
   profile: "/#/profile",
   lend: "/#/lend",
+  notifications: "/#/notifications",
   myListings: (createdId?: number) =>
     createdId ? `/#/my-listings?created=${createdId}` : "/#/my-listings",
   editListing: (id: number) => `/#/my-listings/${id}/edit`,
@@ -116,6 +118,8 @@ export function parseHash(hash: string): Route {
       return { name: "profile" };
     case "lend":
       return { name: "lend" };
+    case "notifications":
+      return { name: "notifications" };
     case "my-listings": {
       const id = Number(second);
       if (second && Number.isInteger(id)) return { name: "edit-listing", id };

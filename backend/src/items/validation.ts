@@ -13,6 +13,8 @@ import {
  * "removed" status, is ignored: ownership comes from the verified session.
  */
 export const LIMITS = {
+  /** Every text field needs at least this many characters. */
+  minText: 10,
   title: 120,
   description: 1000,
   location: 80,
@@ -49,12 +51,15 @@ const isOneOf = <T extends string>(list: readonly T[], value: unknown): value is
 type Check = (value: unknown) => { value?: unknown; error?: string };
 
 const text =
-  (label: string, max: number, required: boolean): Check =>
+  (label: string, max: number): Check =>
   (value) => {
     if (value === undefined || value === null) value = "";
     if (typeof value !== "string") return { error: `${label} must be text.` };
     const trimmed = value.trim();
-    if (required && !trimmed) return { error: `${label} is required.` };
+    if (!trimmed) return { error: `${label} is required.` };
+    if (trimmed.length < LIMITS.minText) {
+      return { error: `${label} must be at least ${LIMITS.minText} characters.` };
+    }
     if (trimmed.length > max) return { error: `${label} must be ${max} characters or fewer.` };
     return { value: trimmed };
   };
@@ -88,11 +93,11 @@ const keywords: Check = (value) => {
 };
 
 const checks: Record<keyof ListingPatch, Check> = {
-  title: text("Item name", LIMITS.title, true),
-  description: text("Description", LIMITS.description, false),
+  title: text("Item name", LIMITS.title),
+  description: text("Description", LIMITS.description),
   category: oneOf("Category", CATEGORIES),
   condition: oneOf("Condition", CONDITIONS),
-  location: text("Location", LIMITS.location, true),
+  location: text("Location", LIMITS.location),
   switchiesPerDay: integer("Switchies per day", LIMITS.switchiesPerDay),
   maxBorrowDays: integer("Maximum borrowing days", LIMITS.maxBorrowDays),
   iconKey: oneOf("Picture", ICON_KEYS),

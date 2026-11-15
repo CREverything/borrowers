@@ -7,15 +7,24 @@ import {
   subscribeToAccount,
 } from "../services/accountStore";
 import {
+  getNotificationState,
+  loadNotifications,
+  resetNotifications,
+  subscribeToNotifications,
+} from "../services/notificationStore";
+import {
   getRequestState,
   loadRequests,
   resetRequests,
   subscribeToRequests,
 } from "../services/requestStore";
 
+/** How often to check for new notifications while the tab is open. */
+const POLL_MS = 60_000;
+
 /**
- * Keeps the request and balance stores in step with who is logged in.
- * Mounted once, near the top of the app.
+ * Keeps the request, balance and notification stores in step with who is
+ * logged in. Mounted once, near the top of the app.
  */
 export function useAccountSync() {
   const { status, user, getToken } = useAuthState();
@@ -25,18 +34,25 @@ export function useAccountSync() {
     if (!userId) {
       resetRequests();
       resetAccount();
+      resetNotifications();
       return;
     }
-    void loadRequests(userId, getToken);
-    void refreshAccount(getToken, userId);
-    // Balances change when someone else approves a request, so re-check when
-    // the tab comes back into focus.
-    const onFocus = () => {
-      void refreshAccount(getToken, userId);
+    const refresh = () => {
       void loadRequests(userId, getToken);
+      void refreshAccount(getToken, userId);
+      void loadNotifications(userId, getToken);
     };
-    window.addEventListener("focus", onFocus);
-    return () => window.removeEventListener("focus", onFocus);
+    refresh();
+    // Other people's actions (approvals, returns, reviews) change things, so
+    // re-check when the tab comes back into focus and every minute while open.
+    window.addEventListener("focus", refresh);
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") void loadNotifications(userId, getToken);
+    }, POLL_MS);
+    return () => {
+      window.removeEventListener("focus", refresh);
+      window.clearInterval(timer);
+    };
     // Keyed on the user, not getToken, whose identity changes on refresh.
   }, [userId]);
 }
@@ -49,4 +65,14 @@ export function useRequests() {
 /** The user's Switchies balance from the server, or null while unknown. */
 export function useBalance() {
   return useSyncExternalStore(subscribeToAccount, getAccountState).balance;
+}
+
+/** The user's average score from lenders, or null if none yet. */
+export function useBorrowerScore() {
+  return useSyncExternalStore(subscribeToAccount, getAccountState).borrowerScore;
+}
+
+/** The user's notifications and unread count. */
+export function useNotifications() {
+  return useSyncExternalStore(subscribeToNotifications, getNotificationState);
 }

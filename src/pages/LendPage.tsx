@@ -2,6 +2,7 @@ import { ArrowLeft } from "lucide-react";
 import { useState } from "react";
 import { useAuthState } from "../auth/AuthContext";
 import ListingForm, { emptyDraft } from "../components/ListingForm";
+import { firstNameOnly } from "../data/users";
 import LoginRequired from "../components/LoginRequired";
 import { navigate, paths } from "../router";
 import {
@@ -10,12 +11,8 @@ import {
   type FieldErrors,
 } from "../services/listingsApi";
 
-/** "Maya Rodriguez" to "Maya R.", as lenders appear on cards. */
-export const cardName = (name: string) => {
-  const [first, ...rest] = name.trim().split(/\s+/);
-  const last = rest[rest.length - 1];
-  return last ? `${first} ${last[0].toUpperCase()}.` : first;
-};
+/** Keep the lender's name to their first name wherever it appears. */
+export const cardName = (name: string) => firstNameOnly(name);
 
 export default function LendPage() {
   const { status, user, getToken } = useAuthState();

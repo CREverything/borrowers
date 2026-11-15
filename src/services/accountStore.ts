@@ -8,9 +8,11 @@ import { authedFetch } from "./api";
 export interface AccountState {
   userId: string | null;
   balance: number | null;
+  /** Average score lenders have given this user as a borrower. */
+  borrowerScore: { average: number; count: number } | null;
 }
 
-let state: AccountState = { userId: null, balance: null };
+let state: AccountState = { userId: null, balance: null, borrowerScore: null };
 const listeners = new Set<() => void>();
 
 function setState(next: AccountState) {
@@ -32,7 +34,7 @@ type GetToken = () => Promise<string | null>;
 /** Loads the balance for `userId`, or re-reads it if `userId` is omitted. */
 export async function refreshAccount(getToken: GetToken, userId = state.userId) {
   if (!userId) return;
-  if (userId !== state.userId) setState({ userId, balance: null });
+  if (userId !== state.userId) setState({ userId, balance: null, borrowerScore: null });
   try {
     const response = await authedFetch("/api/me", getToken, { headers: { Accept: "application/json" } });
     if (!response.ok) {
@@ -40,9 +42,13 @@ export async function refreshAccount(getToken: GetToken, userId = state.userId) 
       console.warn(`[borrowers] Couldn't load your Switchies balance: ${response.status} ${body?.error ?? ""}`);
       return;
     }
-    const body = (await response.json()) as { userId: string; switchiesBalance: number };
+    const body = (await response.json()) as {
+      userId: string;
+      switchiesBalance: number;
+      borrowerScore: AccountState["borrowerScore"];
+    };
     if (state.userId === userId && body.userId === userId) {
-      setState({ userId, balance: body.switchiesBalance });
+      setState({ userId, balance: body.switchiesBalance, borrowerScore: body.borrowerScore ?? null });
     }
   } catch (error) {
     // Leave the last known balance in place; it reloads on the next change.
@@ -50,4 +56,4 @@ export async function refreshAccount(getToken: GetToken, userId = state.userId) 
   }
 }
 
-export const resetAccount = () => setState({ userId: null, balance: null });
+export const resetAccount = () => setState({ userId: null, balance: null, borrowerScore: null });

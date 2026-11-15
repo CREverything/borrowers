@@ -1,17 +1,11 @@
-import { ClipboardList, LogOut, Package, UserRound } from "lucide-react";
+import { Bell, ClipboardList, LogOut, Package, UserRound } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import type { AuthUser } from "../auth/AuthContext";
 import { useAuthState } from "../auth/AuthContext";
 import { navigate, paths } from "../router";
 
 export const initialsOf = (name: string) =>
-  name
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((part) => part[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
+  name.trim().split(/\s+/)[0]?.[0]?.toUpperCase() ?? "";
 
 export function ProfileAvatar({
   user,
@@ -99,6 +93,10 @@ export default function UserMenu({ user }: { user: AuthUser }) {
           <button role="menuitem" onClick={() => go(paths.myListings())}>
             <Package size={18} aria-hidden="true" />
             My listings
+          </button>
+          <button role="menuitem" onClick={() => go(paths.notifications)}>
+            <Bell size={18} aria-hidden="true" />
+            Notifications
           </button>
           <button role="menuitem" onClick={() => go(paths.requests)}>
             <ClipboardList size={18} aria-hidden="true" />

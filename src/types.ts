@@ -76,7 +76,7 @@ export interface Item {
   createdAt?: string
 }
 
-export type RequestStatus = 'pending' | 'approved' | 'declined' | 'cancelled'
+export type RequestStatus = 'pending' | 'approved' | 'declined' | 'cancelled' | 'returned'
 
 export interface BorrowRequest {
   id: string
@@ -93,8 +93,62 @@ export interface BorrowRequest {
   totalSwitchies: number
   status: RequestStatus
   createdAt: string
+  /** When the lender approved or declined. */
+  decidedAt?: string | null
+  /** When the lender wants it back (ISO time). Set on approval. */
+  returnDueAt?: string | null
+  /** When the lender confirmed it came back. */
+  returnedAt?: string | null
+  /** The lender's 1-5 score for the borrower on this request. */
+  borrowerRating?: number | null
+  borrowerRatingComment?: string | null
+  /** Whether the borrower has already reviewed this listing (one per listing). */
+  reviewed?: boolean
+  /** The borrower's average score from lenders. */
+  borrowerScore?: { average: number; count: number } | null
   /** Set when the request was created as part of an event request. */
   eventRequestId?: string
+}
+
+export type NotificationKind =
+  | 'request_received'
+  | 'request_cancelled'
+  | 'request_approved'
+  | 'request_declined'
+  | 'return_time_changed'
+  | 'item_returned'
+  | 'borrower_rated'
+  | 'review_received'
+
+/** Stores facts; the UI phrases them in the reader's time zone. */
+export interface AppNotification {
+  id: string
+  kind: NotificationKind
+  role: 'borrower' | 'lender'
+  data: {
+    itemTitle?: string
+    borrowerName?: string
+    lenderName?: string
+    startDate?: ISODate
+    endDate?: ISODate
+    totalSwitchies?: number
+    returnDueAt?: string | null
+    returnedAt?: string | null
+    rating?: number | null
+    eventTitle?: string
+  }
+  requestId: string | null
+  itemId: number | null
+  read: boolean
+  createdAt: string
+}
+
+export interface Review {
+  id: string
+  rating: number
+  comment: string
+  reviewerName: string
+  createdAt: string
 }
 
 export interface EventItemRequirement {

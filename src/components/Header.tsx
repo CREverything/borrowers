@@ -1,4 +1,4 @@
-import { Plus } from "lucide-react";
+import { Bell, Plus } from "lucide-react";
 import type { MouseEvent } from "react";
 import { useAuthState } from "../auth/AuthContext";
 import { scrollToSection, scrollToTop } from "../lib/scroll";
@@ -6,10 +6,12 @@ import { navigate, paths, type Route } from "../router";
 import { useStartListing } from "./LoginPrompt";
 import SwitchiesInfo from "./SwitchiesInfo";
 import UserMenu from "./UserMenu";
+import { useNotifications } from "../hooks/useRequests";
 
 export default function Header({ route }: { route: Route }) {
   const startListing = useStartListing();
   const { status, user } = useAuthState();
+  const unread = useNotifications().unreadCount;
   const onAuthPage = route.name === "login" || route.name === "signup";
 
   const links = [
@@ -36,8 +38,7 @@ export default function Header({ route }: { route: Route }) {
     const { pathname, hash } = window.location;
     if (pathname !== "/" || `/${hash}` !== href) return;
     e.preventDefault();
-    if (href === paths.browse)
-      scrollToSection("browse");
+    if (href === paths.browse) scrollToSection("browse");
     else scrollToTop();
   };
 
@@ -69,34 +70,49 @@ export default function Header({ route }: { route: Route }) {
         </nav>
 
         <div className="header__actions">
+          {status === "signed-in" && (
+            <a
+              className={`bell${route.name === "notifications" ? " bell--active" : ""}`}
+              href={paths.notifications}
+              aria-label={
+                unread ? `Notifications, ${unread} new` : "Notifications"
+              }
+            >
+              <Bell size={20} aria-hidden="true" />
+              {unread > 0 && (
+                <span className="bell__count" aria-hidden="true">
+                  {unread > 9 ? "9+" : unread}
+                </span>
+              )}
+            </a>
+          )}
+
           <SwitchiesInfo />
 
-          {(status === "signed-out" || status === "unavailable") && !onAuthPage && (
-            <>
-              <a
-                className="btn btn--ghost"
-                href={paths.login()}
-                onClick={(e) => goTo(e, paths.login())}
-              >
-                Log in
-              </a>
-              <a
-                className="btn btn--secondary"
-                href={paths.signup()}
-                onClick={(e) => goTo(e, paths.signup())}
-              >
-                Sign up
-              </a>
-            </>
-          )}
+          {(status === "signed-out" || status === "unavailable") &&
+            !onAuthPage && (
+              <>
+                <a
+                  className="btn btn--ghost"
+                  href={paths.login()}
+                  onClick={(e) => goTo(e, paths.login())}
+                >
+                  Log in
+                </a>
+                <a
+                  className="btn btn--secondary"
+                  href={paths.signup()}
+                  onClick={(e) => goTo(e, paths.signup())}
+                >
+                  Sign up
+                </a>
+              </>
+            )}
           {status === "loading" && (
             <span className="avatar avatar--placeholder" aria-hidden="true" />
           )}
 
-          <button
-            className="btn btn--primary"
-            onClick={startListing}
-          >
+          <button className="btn btn--primary" onClick={startListing}>
             <Plus size={18} />
             Lend an item
           </button>

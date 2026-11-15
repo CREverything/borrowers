@@ -1,4 +1,5 @@
 import type { Pool } from "pg";
+import { firstNameOnly } from "../users/profiles.ts";
 import type { CategoryId, DateRange, Item, ItemCondition, ItemStatus } from "./types.ts";
 import type { ListingInput, ListingPatch } from "./validation.ts";
 
@@ -53,7 +54,7 @@ export function toItem(row: ItemRow): Item {
     category: row.category,
     condition: row.condition,
     lenderId: row.lender_id,
-    lenderName: row.lender_name ?? "",
+    lenderName: firstNameOnly(row.lender_name),
     location: row.location,
     switchiesPerDay: row.switchies_per_day,
     iconKey: row.icon_key,

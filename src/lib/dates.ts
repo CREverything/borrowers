@@ -42,3 +42,41 @@ export function formatShortDate(iso: ISODate): string {
 export function formatRange({ start, end }: DateRange): string {
   return start === end ? formatShortDate(start) : `${formatShortDate(start)} – ${formatShortDate(end)}`
 }
+
+/** A moment in the viewer's time zone, e.g. "Nov 19, 6:00 PM". */
+export function formatDateTime(iso: string): string {
+  return new Date(iso).toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  })
+}
+
+/** "just now", "5m ago", "3h ago", "2d ago", then a date. */
+export function formatRelative(iso: string, now = Date.now()): string {
+  const minutes = Math.round((now - new Date(iso).getTime()) / 60000)
+  if (minutes < 1) return 'just now'
+  if (minutes < 60) return `${minutes}m ago`
+  const hours = Math.round(minutes / 60)
+  if (hours < 24) return `${hours}h ago`
+  const days = Math.round(hours / 24)
+  if (days < 7) return `${days}d ago`
+  return formatShortDate(toISODate(new Date(iso)))
+}
+
+/** Value for a datetime-local input: that day at `hour`:00 local time. */
+export const localDateTimeInput = (date: ISODate, hour = 18) => `${date}T${String(hour).padStart(2, '0')}:00`
+
+/** A datetime-local value as an ISO instant (interpreted in the viewer's time zone). */
+export function localInputToISO(value: string): string | null {
+  const time = new Date(value).getTime()
+  return Number.isNaN(time) ? null : new Date(time).toISOString()
+}
+
+/** An ISO instant as a datetime-local value in the viewer's time zone. */
+export function isoToLocalInput(iso: string): string {
+  const d = new Date(iso)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${toISODate(d)}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
