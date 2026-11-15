@@ -6539,3 +6539,26 @@ body:has(.chat-minimized) .favourites-dock {
   background: rgba(46, 138, 87, 0.12);
   color: var(--ok-text);
 }
+
+/* Back to the chat list, at the start of the chat header. */
+.chat-heading .chat-back {
+  flex-shrink: 0;
+  margin-left: -6px;
+}
+
+/* The chat list popup stops growing at 460px (or less on short screens);
+   past that the list scrolls and the header stays in place. */
+.messages-inbox {
+  max-height: min(460px, calc(100dvh - 124px));
+}
+
+.messages-inbox__list {
+  flex: 1;
+  min-height: 0;
+}
+
+@media (max-width: 640px) {
+  .messages-inbox {
+    max-height: min(460px, calc(100dvh - 100px));
+  }
+}

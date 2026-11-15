@@ -33,6 +33,8 @@ interface MessagingContextValue {
   startDirect: (recipientId: string) => void;
   openConversation: (id: string) => void;
   close: () => void;
+  /** Leave the open chat and show the list of all chats. */
+  back: () => void;
   minimize: () => void;
   refresh: () => Promise<void>;
   loadMore: () => Promise<void>;
@@ -211,7 +213,41 @@ function MessagingSession({ children }: { children: ReactNode }) {
       if (alive.current) setLoading(false);
     }
   };
+  // Remember which chat is open (and if it's minimised) for this tab, so a refresh
+  // reopens it and reloads its history from TigerData. Only the id is kept here.
+  const OPEN_CHAT_KEY = "borrowers.openChat.v1";
+  const restoredOnce = useRef(false);
+  useEffect(() => {
+    if (status !== "signed-in" || !user || !restoredOnce.current) return;
+    try {
+      if (active) {
+        sessionStorage.setItem(OPEN_CHAT_KEY, JSON.stringify({ userId: user.id, id: active.id, minimized }));
+      } else {
+        sessionStorage.removeItem(OPEN_CHAT_KEY);
+      }
+    } catch {
+      // Storage unavailable (private mode): chats just won't reopen after a refresh.
+    }
+  }, [active, minimized, status, user]);
+
   const linkedConversation = route.name === "messages" ? route.conversationId : null;
+  useEffect(() => {
+    if (restoredOnce.current || status !== "signed-in" || !user) return;
+    restoredOnce.current = true;
+    if (linkedConversation) return; // A link to a specific chat wins.
+    let saved: { userId?: string; id?: string; minimized?: boolean } | null = null;
+    try {
+      saved = JSON.parse(sessionStorage.getItem(OPEN_CHAT_KEY) ?? "null");
+    } catch {
+      saved = null;
+    }
+    if (!saved?.id || saved.userId !== user.id) return;
+    const wasMinimized = !!saved.minimized;
+    void openConversation(saved.id).then(() => {
+      if (wasMinimized && alive.current) setMinimized(true);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, user]);
   useEffect(() => {
     if (linkedConversation && status === "signed-in") void openConversation(linkedConversation);
   }, [linkedConversation, status]);
@@ -301,6 +337,12 @@ function MessagingSession({ children }: { children: ReactNode }) {
           void openConversation(id);
         },
         close: () => setActive(null),
+        back: () => {
+          setActive(null);
+          setMinimized(false);
+          setInboxOpen(true);
+          void refresh();
+        },
         minimize: () => setMinimized((v) => !v),
       }}
     >

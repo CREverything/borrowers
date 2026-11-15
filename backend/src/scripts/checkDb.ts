@@ -79,6 +79,23 @@ async function main() {
     } else {
       console.log("Items table: missing. Run `npm --prefix backend run db:seed` to create and fill it.");
     }
+
+    // Chat: counts only, never message content.
+    const chat = await pool.query<{ conversations: string | null; messages: string | null; latest: Date | null }>(
+      `select (select count(*) from conversations)::text as conversations,
+              (select count(*) from messages)::text as messages,
+              (select max(created_at) from messages) as latest
+       where to_regclass('public.messages') is not null`,
+    );
+    if (chat.rows[0]) {
+      const c = chat.rows[0];
+      console.log(
+        `Chat: ${c.conversations} conversations, ${c.messages} messages` +
+          (c.latest ? `, latest saved ${c.latest.toISOString()}` : ""),
+      );
+    } else {
+      console.log("Chat tables: missing. Run `npm --prefix backend run db:messaging:migrate`.");
+    }
   } finally {
     await closePool();
   }

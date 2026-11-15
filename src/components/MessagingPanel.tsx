@@ -1,4 +1,5 @@
 import {
+  ArrowLeft,
   Flag,
   MessageCircle,
   Minus,
@@ -477,6 +478,18 @@ function ChatWindow({ conversation: c }: { conversation: Conversation }) {
         hidden={chat.minimized}
       >
         <div className="chat-heading">
+          <button
+            type="button"
+            className="chat-icon chat-back"
+            aria-label="Back to all chats"
+            title="All chats"
+            onClick={() => {
+              emitTyping(false);
+              chat.back();
+            }}
+          >
+            <ArrowLeft size={18} />
+          </button>
           <Avatar name={c.otherName} imageUrl={c.otherAvatar} size={36} />
           <div className="chat-heading__name">
             <FadeText
