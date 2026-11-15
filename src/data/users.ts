@@ -16,6 +16,11 @@ export function getUser(id: string): User | undefined {
   return users.find((u) => u.id === id)
 }
 
+/** The lender's name: their profile name from the API, else the bundled demo name. */
+export function lenderNameOf(item: { lenderId: string; lenderName?: string }): string {
+  return item.lenderName?.trim() || getUserName(item.lenderId)
+}
+
 export function getUserName(id: string): string {
   return getUser(id)?.displayName ?? 'A student'
 }

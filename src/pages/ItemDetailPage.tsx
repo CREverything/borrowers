@@ -4,27 +4,30 @@ import {
   CircleCheckBig,
   Coins,
   Heart,
+  Inbox,
   MapPin,
   Package,
+  Pencil,
   RotateCcw,
 } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { useAuthState } from "../auth/AuthContext";
 import { clearPendingIntent, peekPendingIntent } from "../auth/pendingAction";
 import AvailabilityBadge from "../components/AvailabilityBadge";
-import DateRangeFields from "../components/DateRangeFields";
 import ItemIllustration from "../components/ItemIllustration";
 import ItemsStatus from "../components/ItemsStatus";
+import RangeCalendar from "../components/RangeCalendar";
 import { useGatedPlaceholder, useRequireAuth } from "../components/LoginPrompt";
 import RatingInline from "../components/RatingInline";
 import { getCategoryLabel } from "../data/categories";
 import { getUser } from "../data/users";
 import { useItems } from "../hooks/useItems";
+import { useBalance, useRequests } from "../hooks/useRequests";
 import { getAvailability, upcomingBookings } from "../lib/availability";
 import { quoteBorrow } from "../lib/borrowing";
-import { formatRange, todayISO } from "../lib/dates";
+import { addDays, formatRange, todayISO } from "../lib/dates";
 import { paths } from "../router";
-import { createBorrowRequest } from "../services/requestStore";
+import { createBorrowRequest, RequestError } from "../services/requestStore";
 import type { BorrowRequest, Item } from "../types";
 
 const initials = (name: string) =>
@@ -70,9 +73,16 @@ export default function ItemDetailPage({ id }: { id: number }) {
 function ItemDetail({ item }: { item: Item }) {
   const gatedPlaceholder = useGatedPlaceholder();
   const requireAuth = useRequireAuth();
-  const { user } = useAuthState();
+  const { user, getToken } = useAuthState();
+  const balance = useBalance();
+  const { incoming } = useRequests();
+  const isOwner = !!user && user.id === item.lenderId;
+  const pendingForItem = incoming.filter(
+    (r) => r.itemId === item.id && r.status === "pending",
+  ).length;
   const lender = getUser(item.lenderId);
-  const lenderName = lender?.displayName ?? "the lender";
+  const lenderName =
+    item.lenderName?.trim() || lender?.displayName || "the lender";
   const today = todayISO();
   const availability = getAvailability(item, today);
   const bookings = upcomingBookings(item, today);
@@ -89,32 +99,38 @@ function ItemDetail({ item }: { item: Item }) {
   const [endDate, setEndDate] = useState(restored?.endDate ?? "");
   const [attempted, setAttempted] = useState(false);
   const [submitted, setSubmitted] = useState<BorrowRequest | null>(null);
+  const [sending, setSending] = useState(false);
+  const [serverError, setServerError] = useState<string | null>(null);
 
   const quote = quoteBorrow(item, startDate, endDate, today);
   const showError =
     !quote.ok && (attempted || (startDate !== "" && endDate !== ""));
+  const cantAfford =
+    quote.ok && balance !== null && quote.totalSwitchies > balance;
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setAttempted(true);
-    if (!quote.ok) return;
+    setServerError(null);
+    if (!quote.ok || cantAfford) return;
     const allowed = requireAuth("request", {
-      intent: { kind: "borrow", itemId: item.id, startDate, endDate },
-      label: `your request for ${item.title}`,
+      restore: {
+        intent: { kind: "borrow", itemId: item.id, startDate, endDate },
+        label: `your request for ${item.title}`,
+      },
     });
     if (!allowed || !user) return;
-    setSubmitted(
-      createBorrowRequest(
-        {
-          item,
-          startDate,
-          endDate,
-          days: quote.days,
-          totalSwitchies: quote.totalSwitchies,
-        },
-        user.id,
-      ),
-    );
+    setSending(true);
+    try {
+      // The server prices the request itself and re-checks the dates.
+      setSubmitted(
+        await createBorrowRequest(getToken, { itemId: item.id, startDate, endDate }),
+      );
+    } catch (error) {
+      setServerError((error as RequestError).message);
+    } finally {
+      setSending(false);
+    }
   };
 
   const resetForm = () => {
@@ -122,6 +138,7 @@ function ItemDetail({ item }: { item: Item }) {
     setStartDate("");
     setEndDate("");
     setAttempted(false);
+    setServerError(null);
   };
 
   return (
@@ -203,7 +220,52 @@ function ItemDetail({ item }: { item: Item }) {
         </div>
 
         <aside className="booking" aria-label="Request to borrow">
-          {submitted ? (
+          {isOwner ? (
+            <div className="owner-panel">
+              <p className="booking__price">
+                <Coins size={22} aria-hidden="true" />
+                <strong>{item.switchiesPerDay}</strong> Switchies / day
+              </p>
+              <p className="owner-panel__badge">
+                <Package size={16} aria-hidden="true" />
+                This is your listing
+              </p>
+              <dl className="quote owner-panel__stats">
+                <div>
+                  <dt>Pending requests</dt>
+                  <dd>{pendingForItem}</dd>
+                </div>
+                <div>
+                  <dt>Lend for up to</dt>
+                  <dd>
+                    {item.availability.maxBorrowDays}{" "}
+                    {item.availability.maxBorrowDays === 1 ? "day" : "days"}
+                  </dd>
+                </div>
+              </dl>
+              {pendingForItem > 0 && (
+                <a className="owner-panel__review" href={paths.lendingRequests}>
+                  <Inbox size={16} aria-hidden="true" />
+                  Review {pendingForItem === 1 ? "request" : `${pendingForItem} requests`}
+                </a>
+              )}
+              <div className="owner-panel__actions">
+                <a
+                  className="btn btn--primary btn--block"
+                  href={paths.editListing(item.id)}
+                >
+                  <Pencil size={16} aria-hidden="true" />
+                  Edit listing
+                </a>
+                <a
+                  className="btn btn--secondary btn--block"
+                  href={paths.myListings()}
+                >
+                  My listings
+                </a>
+              </div>
+            </div>
+          ) : submitted ? (
             <div className="confirmation">
               <CircleCheckBig
                 size={40}
@@ -247,13 +309,17 @@ function ItemDetail({ item }: { item: Item }) {
                 <strong>{item.switchiesPerDay}</strong> Switchies / day
               </p>
 
-              <DateRangeFields
+              <RangeCalendar
                 start={startDate}
                 end={endDate}
                 min={today}
+                max={addDays(today, 365)}
+                booked={item.availability.bookedRanges}
+                maxDays={item.availability.maxBorrowDays}
                 onChange={(start, end) => {
                   setStartDate(start);
                   setEndDate(end);
+                  setServerError(null);
                 }}
               />
 
@@ -276,11 +342,29 @@ function ItemDetail({ item }: { item: Item }) {
                   {quote.error}
                 </p>
               ) : (
-                <p className="muted small">Choose dates to see the total.</p>
+                <p className="muted small">
+                  {startDate
+                    ? "Now choose the last day you need it."
+                    : "Choose the first day you need it."}
+                </p>
+              )}
+              {cantAfford && (
+                <p className="form-error" role="alert">
+                  You have {balance} Switchies, so this is out of reach for now.
+                </p>
+              )}
+              {serverError && (
+                <p className="form-error" role="alert">
+                  {serverError}
+                </p>
               )}
 
-              <button type="submit" className="btn btn--primary btn--block">
-                Request to Borrow
+              <button
+                type="submit"
+                className="btn btn--primary btn--block"
+                disabled={sending}
+              >
+                {sending ? "Sending..." : "Request to Borrow"}
               </button>
               <p className="muted small booking__note">
                 Nothing is charged now. Switchies move only after {lenderName}{" "}

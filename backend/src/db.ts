@@ -6,6 +6,11 @@ import pg from "pg";
  * TigerData connection strings include `sslmode=require`, so traffic to the
  * database is encrypted. The connection string is never logged.
  */
+// Keep SQL `date` values as "YYYY-MM-DD" strings. Converting them to JS Dates
+// would shift them by the server's time zone.
+const DATE_OID = 1082;
+pg.types.setTypeParser(DATE_OID, (value) => value);
+
 let pool: pg.Pool | undefined;
 
 export function createPool(connectionString: string): pg.Pool {

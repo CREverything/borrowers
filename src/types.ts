@@ -43,6 +43,9 @@ export type AvailabilityStatus = 'available' | 'limited' | 'unavailable'
 
 export type ItemCondition = 'Like new' | 'Good' | 'Fair'
 
+/** active: in the marketplace. hidden: only the owner sees it. removed: soft-deleted. */
+export type ItemStatus = 'active' | 'hidden' | 'removed'
+
 export interface Rating {
   average: number
   count: number
@@ -55,6 +58,8 @@ export interface Item {
   category: CategoryId
   condition: ItemCondition
   lenderId: string
+  /** The lender's profile name from the API. Empty or missing for unnamed profiles. */
+  lenderName?: string
   /** Approximate campus spot, never an exact address. */
   location: string
   switchiesPerDay: number
@@ -65,6 +70,10 @@ export interface Item {
   /** Extra search terms, also used to match event planning suggestions. */
   keywords: string[]
   availability: Availability
+  /** Hosted photo URL. Uploads aren't available yet, so this is always null for now. */
+  imageUrl?: string | null
+  status?: ItemStatus
+  createdAt?: string
 }
 
 export type RequestStatus = 'pending' | 'approved' | 'declined' | 'cancelled'
@@ -72,6 +81,10 @@ export type RequestStatus = 'pending' | 'approved' | 'declined' | 'cancelled'
 export interface BorrowRequest {
   id: string
   itemId: number
+  /** Item title when the request was loaded, in case the listing is gone. */
+  itemTitle?: string
+  lenderName?: string
+  borrowerName?: string
   lenderId: string
   borrowerId: string
   startDate: ISODate

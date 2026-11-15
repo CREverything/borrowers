@@ -31,7 +31,6 @@ const actionText: Record<GatedAction, string> = {
 
 /** Features that need an account but aren't built yet. */
 const comingSoon: Partial<Record<GatedAction, string>> = {
-  lend: "Listing items opens soon",
   waitlist: "Waitlists open soon",
   favourite: "Favourites are coming soon",
   trade: "Trades are coming soon",
@@ -43,11 +42,18 @@ interface Restore {
   label: string;
 }
 
+interface RequireAuthOptions {
+  /** Selections to bring back after login. */
+  restore?: Restore;
+  /** Where to land after login, if not the current page (an in-app hash like "#/lend"). */
+  returnTo?: string;
+}
+
 /**
  * Returns true when the visitor is logged in and may continue. Otherwise it
  * saves `restore` (so their selections survive login) and opens the prompt.
  */
-type RequireAuthFn = (action: GatedAction, restore?: Restore) => boolean;
+type RequireAuthFn = (action: GatedAction, options?: RequireAuthOptions) => boolean;
 
 interface GateContextValue {
   requireAuth: RequireAuthFn;
@@ -60,6 +66,14 @@ const GateContext = createContext<GateContextValue>({
 });
 
 export const useRequireAuth = () => useContext(GateContext).requireAuth;
+
+/** Opens the List an Item page, asking the visitor to log in first if needed. */
+export function useStartListing() {
+  const { requireAuth } = useContext(GateContext);
+  return useCallback(() => {
+    if (requireAuth("lend", { returnTo: paths.lend.slice(1) })) navigate(paths.lend);
+  }, [requireAuth]);
+}
 
 /** For actions with no feature behind them yet: prompts login, or says it's coming. */
 export function useGatedPlaceholder() {
@@ -82,10 +96,10 @@ export function LoginPromptProvider({ children }: { children: ReactNode }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
 
   const requireAuth = useCallback<RequireAuthFn>(
-    (action, restore) => {
+    (action, options = {}) => {
       if (status === "signed-in") return true;
-      if (restore) savePendingIntent(restore.intent, restore.label);
-      setDialog({ type: "login", action, returnTo: currentHash() });
+      if (options.restore) savePendingIntent(options.restore.intent, options.restore.label);
+      setDialog({ type: "login", action, returnTo: options.returnTo ?? currentHash() });
       return false;
     },
     [status],

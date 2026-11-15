@@ -3,12 +3,12 @@ import type { MouseEvent } from "react";
 import { useAuthState } from "../auth/AuthContext";
 import { scrollToSection, scrollToTop } from "../lib/scroll";
 import { navigate, paths, type Route } from "../router";
-import { useGatedPlaceholder } from "./LoginPrompt";
+import { useStartListing } from "./LoginPrompt";
 import SwitchiesInfo from "./SwitchiesInfo";
 import UserMenu from "./UserMenu";
 
 export default function Header({ route }: { route: Route }) {
-  const gatedPlaceholder = useGatedPlaceholder();
+  const startListing = useStartListing();
   const { status, user } = useAuthState();
   const onAuthPage = route.name === "login" || route.name === "signup";
 
@@ -95,7 +95,7 @@ export default function Header({ route }: { route: Route }) {
 
           <button
             className="btn btn--primary"
-            onClick={() => gatedPlaceholder("lend")}
+            onClick={startListing}
           >
             <Plus size={18} />
             Lend an item

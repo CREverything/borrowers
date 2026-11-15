@@ -1,10 +1,11 @@
 import { Coins, Info } from "lucide-react";
 import { useAuthState } from "../auth/AuthContext";
-import { SWITCHIES_BALANCE } from "../data/account";
+import { useBalance } from "../hooks/useRequests";
 
 export default function SwitchiesInfo() {
   const { status } = useAuthState();
-  const showBalance = status === "signed-in";
+  const balance = useBalance();
+  const showBalance = status === "signed-in" && balance !== null;
 
   return (
     <div className="switchies-info">
@@ -13,7 +14,7 @@ export default function SwitchiesInfo() {
         {showBalance ? (
           <>
             <strong className="switchies-chip__balance">
-              {SWITCHIES_BALANCE}
+              {balance}
             </strong>
             Switchies
           </>

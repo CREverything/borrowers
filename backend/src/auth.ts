@@ -1,6 +1,7 @@
-import { clerkMiddleware, getAuth } from "@clerk/express";
+import { clerkMiddleware, createClerkClient, getAuth } from "@clerk/express";
 import type { RequestHandler, Response } from "express";
 import type { AuthConfig } from "./config.ts";
+import { shortDisplayName, type FetchProfile } from "./users/profiles.ts";
 
 /**
  * Middleware chain for protected endpoints. Clerk verifies the session token
@@ -15,7 +16,7 @@ export function createRequireUser(auth: AuthConfig | null): RequestHandler[] {
   if (!auth) {
     return [
       (_req, res) => {
-        res.status(503).json({ error: "Sign-in isn't configured on the server." });
+        res.status(503).json({ error: "Login isn't configured on the server." });
       },
     ];
   }
@@ -29,7 +30,7 @@ export function createRequireUser(auth: AuthConfig | null): RequestHandler[] {
   const requireSignedIn: RequestHandler = (req, res, next) => {
     const { userId } = getAuth(req);
     if (!userId) {
-      res.status(401).json({ error: "Sign in required." });
+      res.status(401).json({ error: "Log in required." });
       return;
     }
     res.locals.userId = userId;
@@ -44,4 +45,21 @@ export function authenticatedUserId(res: Response): string {
   const userId: unknown = res.locals.userId;
   if (typeof userId !== "string") throw new Error("Route is missing the requireUser middleware.");
   return userId;
+}
+
+/**
+ * Reads a user's name and avatar from Clerk's Backend API, to fill in their
+ * profile the first time they use the API. Only called with an id taken from
+ * a verified session.
+ */
+export function createProfileFetcher(auth: AuthConfig | null): FetchProfile {
+  if (!auth) return async () => ({ displayName: "", avatarUrl: null });
+  const clerk = createClerkClient({ secretKey: auth.secretKey, publishableKey: auth.publishableKey });
+  return async (clerkId) => {
+    const user = await clerk.users.getUser(clerkId);
+    return {
+      displayName: shortDisplayName(user.firstName, user.lastName, user.username),
+      avatarUrl: user.hasImage ? user.imageUrl : null,
+    };
+  };
 }

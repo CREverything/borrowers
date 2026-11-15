@@ -1,15 +1,14 @@
 /**
- * Creates the items table and loads the starter listings: `npm run db:seed`.
- * Safe to run repeatedly. Existing rows with the same id are updated, so
- * re-seeding also refreshes the booked dates relative to today.
+ * Applies the schema and loads the starter listings: `npm run db:seed`.
+ * Safe to run repeatedly. Starter rows with the same id are updated, so
+ * re-seeding also refreshes their booked dates relative to today. Listings
+ * created by users are never touched, and a starter listing's status is kept.
  */
-import { readFile } from "node:fs/promises";
 import { readConfig } from "../config.ts";
 import { closePool, createPool } from "../db.ts";
 import { seedItems } from "../items/seedData.ts";
 import type { DateRange } from "../items/types.ts";
-
-const schemaPath = new URL("../../db/schema.sql", import.meta.url);
+import { runMigrations } from "../migrations.ts";
 
 function localISODate(offsetDays: number): string {
   const date = new Date();
@@ -29,7 +28,8 @@ async function main() {
 
   try {
     await client.query("begin");
-    await client.query(await readFile(schemaPath, "utf8"));
+    // Also creates the demo lender profiles the starter listings point to.
+    await runMigrations(client);
 
     for (const item of seedItems) {
       await client.query(

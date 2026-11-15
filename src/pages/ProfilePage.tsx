@@ -2,7 +2,7 @@ import { Coins, LogIn, Mail, ShieldCheck, ShieldQuestion } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAuthState, type AuthUser } from "../auth/AuthContext";
 import { ProfileAvatar } from "../components/UserMenu";
-import { SWITCHIES_BALANCE } from "../data/account";
+import { useBalance } from "../hooks/useRequests";
 import { navigate, paths } from "../router";
 import { authedFetch } from "../services/api";
 
@@ -61,6 +61,7 @@ const memberSince = (date: Date | null) =>
 function Profile({ user }: { user: AuthUser }) {
   const { signOut, openAccountSettings } = useAuthState();
   const since = memberSince(user.createdAt);
+  const balance = useBalance();
 
   return (
     <div className="container page page--narrow">
@@ -85,7 +86,7 @@ function Profile({ user }: { user: AuthUser }) {
             <span className="profile__balance-icon" aria-hidden="true">
               <Coins size={22} />
             </span>
-            <strong>{SWITCHIES_BALANCE}</strong>
+            <strong>{balance ?? "–"}</strong>
             <span className="muted">Switchies</span>
           </p>
           <p className="muted small">

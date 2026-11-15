@@ -1,4 +1,4 @@
-import { ClipboardList, LogOut, UserRound } from "lucide-react";
+import { ClipboardList, LogOut, Package, UserRound } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import type { AuthUser } from "../auth/AuthContext";
 import { useAuthState } from "../auth/AuthContext";
@@ -95,6 +95,10 @@ export default function UserMenu({ user }: { user: AuthUser }) {
           <button role="menuitem" onClick={() => go(paths.profile)}>
             <UserRound size={18} aria-hidden="true" />
             Profile
+          </button>
+          <button role="menuitem" onClick={() => go(paths.myListings())}>
+            <Package size={18} aria-hidden="true" />
+            My listings
           </button>
           <button role="menuitem" onClick={() => go(paths.requests)}>
             <ClipboardList size={18} aria-hidden="true" />

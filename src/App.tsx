@@ -1,10 +1,14 @@
 import { useEffect, useState } from "react";
 import Header from "./components/Header";
+import { useAccountSync } from "./hooks/useRequests";
 import { defaultFilters, type MarketplaceFilters } from "./lib/marketplace";
 import AuthPage from "./pages/AuthPage";
 import EventPlannerPage from "./pages/EventPlannerPage";
 import HomePage from "./pages/HomePage";
+import EditListingPage from "./pages/EditListingPage";
 import ItemDetailPage from "./pages/ItemDetailPage";
+import LendPage from "./pages/LendPage";
+import MyListingsPage from "./pages/MyListingsPage";
 import ProfilePage from "./pages/ProfilePage";
 import RequestsPage from "./pages/RequestsPage";
 import SwitchiesPage from "./pages/SwitchiesPage";
@@ -13,6 +17,8 @@ import { useRoute, type Route } from "./router";
 
 export default function App() {
   const route = useRoute();
+  // Loads the logged-in user's requests and Switchies balance.
+  useAccountSync();
   // Lives here so search and filters survive a trip to an item page and back.
   const [filters, setFilters] = useState<MarketplaceFilters>(defaultFilters);
   const [showAll, setShowAll] = useState(false);
@@ -36,9 +42,15 @@ export default function App() {
       case "switchies":
         return <SwitchiesPage />;
       case "requests":
-        return <RequestsPage />;
+        return <RequestsPage tab={r.tab} />;
       case "profile":
         return <ProfilePage />;
+      case "lend":
+        return <LendPage />;
+      case "my-listings":
+        return <MyListingsPage createdId={r.createdId} />;
+      case "edit-listing":
+        return <EditListingPage id={r.id} />;
       // One element for both, so state survives switching between them.
       case "login":
       case "signup":

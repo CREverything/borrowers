@@ -19,12 +19,58 @@ async function main() {
       console.log(`  ${extname} ${extversion}`);
     }
 
+    const users = await pool.query<{ exists: boolean }>(
+      "select to_regclass('public.users') is not null as exists",
+    );
+    if (users.rows[0].exists) {
+      const n = await pool.query<{ n: string }>("select count(*) as n from users");
+      console.log(`Users table: ${n.rows[0].n} profiles`);
+    } else {
+      console.log("Users table: missing");
+    }
+
     const table = await pool.query<{ exists: boolean }>(
       "select to_regclass('public.items') is not null as exists",
     );
     if (table.rows[0].exists) {
       const count = await pool.query<{ n: string }>("select count(*) as n from items");
       console.log(`Items table: ${count.rows[0].n} listings`);
+
+      // Consoles often show this planner estimate instead of an exact count.
+      // It stays stale on small tables until autovacuum next analyzes them.
+      const estimate = await pool.query<{ db: string; schema: string; estimate: string }>(
+        `select current_database() as db, n.nspname as schema, c.reltuples::bigint as estimate
+         from pg_class c join pg_namespace n on n.oid = c.relnamespace
+         where c.oid = 'public.items'::regclass`,
+      );
+      const e = estimate.rows[0];
+      console.log(`  Database: ${e.db}, table ${e.schema}.items, statistics estimate: ${e.estimate} rows`);
+
+      const columns = await pool.query<{ column_name: string; data_type: string }>(
+        `select column_name, data_type from information_schema.columns
+         where table_schema = 'public' and table_name = 'items' order by ordinal_position`,
+      );
+      console.log("  Columns:", columns.rows.map((c) => `${c.column_name} (${c.data_type})`).join(", "));
+
+      const constraints = await pool.query<{ conname: string; def: string }>(
+        `select conname, pg_get_constraintdef(oid) as def from pg_constraint
+         where conrelid = 'public.items'::regclass order by conname`,
+      );
+      for (const c of constraints.rows) console.log(`  Constraint ${c.conname}: ${c.def}`);
+
+      const lenders = await pool.query<{ lender_id: string; n: string }>(
+        "select lender_id, count(*) as n from items group by lender_id order by lender_id",
+      );
+      console.log("  Lenders:", lenders.rows.map((l) => `${l.lender_id} (${l.n})`).join(", "));
+
+      // Hash of the original listing columns, to confirm migrations leave data unchanged.
+      const fingerprint = await pool.query<{ md5: string }>(
+        `select md5(string_agg(row(id, title, description, category, condition, lender_id,
+           location, switchies_per_day, rating_average, rating_count, icon_key, keywords,
+           max_borrow_days, booked_ranges, created_at, updated_at)::text, '|' order by id)) as md5
+         from items`,
+      );
+      console.log("  Data fingerprint:", fingerprint.rows[0].md5);
     } else {
       console.log("Items table: missing. Run `npm --prefix backend run db:seed` to create and fill it.");
     }

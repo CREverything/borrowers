@@ -1,7 +1,7 @@
 import { Coins, Heart, MapPin } from "lucide-react";
 import { useEffect, useRef, useState, type MouseEvent } from "react";
 import { getCategoryLabel } from "../data/categories";
-import { getUserName } from "../data/users";
+import { lenderNameOf } from "../data/users";
 import { getAvailability } from "../lib/availability";
 import { navigate, paths } from "../router";
 import type { Item } from "../types";
@@ -65,7 +65,7 @@ export default function ItemCard({ item }: { item: Item }) {
         <p className="card__meta">
           <MapPin size={14} aria-hidden="true" />
           <span className="card__meta-text">
-            {item.location} · {getUserName(item.lenderId)}
+            {item.location} · {lenderNameOf(item)}
           </span>
         </p>
 

@@ -5,7 +5,8 @@ import type { Item } from "./types.ts";
  * `bookedDays` are offsets from the day the seed runs ([from, to], inclusive),
  * so a fresh seed always shows a mix of available, limited and booked items.
  */
-export interface SeedItem extends Omit<Item, "availability"> {
+export interface SeedItem
+  extends Omit<Item, "availability" | "lenderName" | "imageUrl" | "status" | "createdAt"> {
   maxBorrowDays: number;
   bookedDays: [number, number][];
 }

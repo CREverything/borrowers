@@ -41,7 +41,30 @@ const icons: Record<string, LucideIcon> = {
   lights: Lightbulb,
   table: Table2,
   party: PartyPopper,
+  box: Package,
 }
+
+/** Icons a lender can choose as their listing's picture. Keys must match ICON_KEYS in the backend. */
+export const iconChoices: { key: string; label: string; icon: LucideIcon }[] = [
+  { key: 'box', label: 'Box', icon: Package },
+  { key: 'book', label: 'Book', icon: BookOpen },
+  { key: 'calculator', label: 'Calculator', icon: Calculator },
+  { key: 'headphones', label: 'Headphones', icon: Headphones },
+  { key: 'speaker', label: 'Speaker', icon: Speaker },
+  { key: 'projector', label: 'Projector', icon: Projector },
+  { key: 'plug', label: 'Charger or cable', icon: Plug },
+  { key: 'desk-lamp', label: 'Lamp', icon: LampDesk },
+  { key: 'lights', label: 'Lights', icon: Lightbulb },
+  { key: 'fridge', label: 'Fridge', icon: Refrigerator },
+  { key: 'pot', label: 'Cookware', icon: CookingPot },
+  { key: 'chair', label: 'Chair', icon: Armchair },
+  { key: 'table', label: 'Table', icon: Table2 },
+  { key: 'whiteboard', label: 'Whiteboard', icon: Presentation },
+  { key: 'marker', label: 'Stationery', icon: PenLine },
+  { key: 'shirt', label: 'Clothing', icon: Shirt },
+  { key: 'dice', label: 'Game', icon: Dice5 },
+  { key: 'party', label: 'Party', icon: PartyPopper },
+]
 
 export const getItemIcon = (item: Item): LucideIcon => icons[item.iconKey] ?? Package
 

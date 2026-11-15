@@ -20,7 +20,7 @@ import { EVENT_PLACEHOLDER } from "../components/EventPlannerBanner";
 import ItemIllustration from "../components/ItemIllustration";
 import ItemsStatus from "../components/ItemsStatus";
 import { useRequireAuth } from "../components/LoginPrompt";
-import { getUserName } from "../data/users";
+import { lenderNameOf } from "../data/users";
 import { useItems } from "../hooks/useItems";
 import { getAvailability } from "../lib/availability";
 import { quoteBorrow, type BorrowQuote } from "../lib/borrowing";
@@ -28,7 +28,7 @@ import { addDays, formatRange, todayISO } from "../lib/dates";
 import { matchListings } from "../lib/eventMatching";
 import { navigate, paths } from "../router";
 import { eventPlanner } from "../services/eventPlanner";
-import { createEventRequest } from "../services/requestStore";
+import { createEventRequest, RequestError } from "../services/requestStore";
 import type { EventPlan, EventRequest, Item } from "../types";
 
 const EXAMPLES = [
@@ -162,7 +162,7 @@ function PlanResults({
 }) {
   const today = todayISO();
   const requireAuth = useRequireAuth();
-  const { user } = useAuthState();
+  const { user, getToken } = useAuthState();
   // Selections made before logging in come back here afterwards.
   const [restored] = useState(() =>
     peekPendingIntent("event", (intent) => intent.query === description),
@@ -179,15 +179,21 @@ function PlanResults({
     restored?.endDate ?? addDays(today, 7),
   );
   const [submitted, setSubmitted] = useState<EventRequest | null>(null);
+  const [sending, setSending] = useState(false);
+  const [serverError, setServerError] = useState<string | null>(null);
   const { items, getItem, status, reload } = useItems();
 
   const requirements = useMemo(
     () =>
       plan.requirements.map((req) => ({
         req,
-        matches: matchListings(req, items),
+        // You can't borrow your own listings, so they aren't suggested.
+        matches: matchListings(
+          req,
+          items.filter((item) => item.lenderId !== user?.id),
+        ),
       })),
-    [plan, items],
+    [plan, items, user?.id],
   );
 
   const toggle = (id: number) =>
@@ -216,8 +222,9 @@ function PlanResults({
   const dateError =
     !startDate || !endDate ? "Choose the dates you need everything for." : null;
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!valid) return;
+    setServerError(null);
     const intent: PendingIntent = {
       kind: "event",
       query: description,
@@ -227,34 +234,26 @@ function PlanResults({
       endDate,
     };
     const allowed = requireAuth("event-request", {
-      intent,
-      label: `your event request for ${plan.title}`,
+      restore: { intent, label: `your event request for ${plan.title}` },
     });
     if (!allowed || !user) return;
-    setSubmitted(
-      createEventRequest(
-        {
-          description,
+    setSending(true);
+    try {
+      // The server prices each item and checks every date before saving any.
+      setSubmitted(
+        await createEventRequest(getToken, {
           eventTitle: plan.title,
+          description,
           startDate,
           endDate,
-          items: selectedItems.map((item) => {
-            const quote = quotes.get(item.id) as Extract<
-              BorrowQuote,
-              { ok: true }
-            >;
-            return {
-              item,
-              startDate,
-              endDate,
-              days: quote.days,
-              totalSwitchies: quote.totalSwitchies,
-            };
-          }),
-        },
-        user.id,
-      ),
-    );
+          itemIds: selectedItems.map((item) => item.id),
+        }),
+      );
+    } catch (error) {
+      setServerError((error as RequestError).message);
+    } finally {
+      setSending(false);
+    }
   };
 
   // Matching needs listings; without them every requirement would look unmet.
@@ -390,7 +389,7 @@ function PlanResults({
                       <div className="summary-list__text">
                         <strong>{item.title}</strong>
                         <span className="muted">
-                          {getUserName(item.lenderId)}
+                          {lenderNameOf(item)}
                         </span>
                         {quote && !quote.ok && !dateError && (
                           <span className="form-error">{quote.error}</span>
@@ -425,12 +424,17 @@ function PlanResults({
               </div>
             </dl>
 
+            {serverError && (
+              <p className="form-error" role="alert">
+                {serverError}
+              </p>
+            )}
             <button
               className="btn btn--primary btn--block"
-              disabled={!valid}
+              disabled={!valid || sending}
               onClick={handleSubmit}
             >
-              Send event request
+              {sending ? "Sending..." : "Send event request"}
             </button>
             <p className="muted small booking__note">
               Each lender approves separately. Nothing is charged until they do.
@@ -457,7 +461,7 @@ function MatchRow({ item, checked, onToggle }: MatchRowProps) {
         <span className="match__text">
           <strong>{item.title}</strong>
           <span className="muted">
-            {item.location} · {getUserName(item.lenderId)}
+            {item.location} · {lenderNameOf(item)}
           </span>
           <AvailabilityBadge summary={getAvailability(item)} />
         </span>

@@ -12,8 +12,11 @@ export type Route =
   | { name: "item"; id: number }
   | { name: "plan"; query: string }
   | { name: "switchies" }
-  | { name: "requests" }
+  | { name: "requests"; tab: "borrowing" | "lending" }
   | { name: "profile" }
+  | { name: "lend" }
+  | { name: "my-listings"; createdId: number | null }
+  | { name: "edit-listing"; id: number }
   /** returnTo is null when the URL has no ?return= (one of Clerk's own steps). */
   | { name: "login"; returnTo: string | null }
   | { name: "signup"; returnTo: string | null };
@@ -29,7 +32,12 @@ export const paths = {
     query ? `/#/plan?q=${encodeURIComponent(query)}` : "/#/plan",
   switchies: "/#/switchies",
   requests: "/#/requests",
+  lendingRequests: "/#/requests?tab=lending",
   profile: "/#/profile",
+  lend: "/#/lend",
+  myListings: (createdId?: number) =>
+    createdId ? `/#/my-listings?created=${createdId}` : "/#/my-listings",
+  editListing: (id: number) => `/#/my-listings/${id}/edit`,
   login: (returnTo = currentHash()) => authPath("/login", returnTo),
   signup: (returnTo = currentHash()) => authPath("/signup", returnTo),
 };
@@ -100,9 +108,23 @@ export function parseHash(hash: string): Route {
     case "switchies":
       return { name: "switchies" };
     case "requests":
-      return { name: "requests" };
+      return {
+        name: "requests",
+        tab: new URLSearchParams(search).get("tab") === "lending" ? "lending" : "borrowing",
+      };
     case "profile":
       return { name: "profile" };
+    case "lend":
+      return { name: "lend" };
+    case "my-listings": {
+      const id = Number(second);
+      if (second && Number.isInteger(id)) return { name: "edit-listing", id };
+      const created = Number(new URLSearchParams(search).get("created"));
+      return {
+        name: "my-listings",
+        createdId: Number.isInteger(created) && created > 0 ? created : null,
+      };
+    }
     case "browse":
       return { name: "home", section: "browse" };
   }

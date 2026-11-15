@@ -1,6 +1,6 @@
 import { CloudOff, Package, PackageOpen, Plus } from "lucide-react";
 import type { ItemsStatus as Status } from "../services/itemsStore";
-import { useGatedPlaceholder } from "./LoginPrompt";
+import { useStartListing } from "./LoginPrompt";
 
 interface ItemsStatusProps {
   status: Status;
@@ -9,7 +9,7 @@ interface ItemsStatusProps {
 
 /** Loading, error and "no listings yet" states, using the existing empty-state styles. */
 export default function ItemsStatus({ status, onRetry }: ItemsStatusProps) {
-  const gatedPlaceholder = useGatedPlaceholder();
+  const startListing = useStartListing();
 
   // Loaded fine, but nobody has listed anything yet.
   if (status === "ready") {
@@ -22,7 +22,7 @@ export default function ItemsStatus({ status, onRetry }: ItemsStatusProps) {
         <p>Nobody on campus has listed anything so far. Be the first!</p>
         <button
           className="btn btn--primary"
-          onClick={() => gatedPlaceholder("lend")}
+          onClick={startListing}
         >
           <Plus size={18} aria-hidden="true" />
           Lend an item
