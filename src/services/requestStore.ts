@@ -1,10 +1,13 @@
-import { DEMO_USER_ID } from '../data/users'
 import type { BorrowRequest, EventRequest, ISODate, Item } from '../types'
 
 /**
  * Demo persistence for borrow and event requests, kept in localStorage.
  * Each exported function maps to a future backend endpoint, so swapping this
  * file for API calls should not require UI changes.
+ *
+ * borrowerId is the signed-in Clerk user, used only to show each person their
+ * own requests in this browser. The backend must never accept it from the
+ * client; it will take the user from the verified session token instead.
  */
 export interface RequestState {
   borrowRequests: BorrowRequest[]
@@ -60,12 +63,16 @@ export interface BorrowRequestInput {
   totalSwitchies: number
 }
 
-function buildBorrowRequest(input: BorrowRequestInput, eventRequestId?: string): BorrowRequest {
+function buildBorrowRequest(
+  input: BorrowRequestInput,
+  borrowerId: string,
+  eventRequestId?: string,
+): BorrowRequest {
   return {
     id: newId('br'),
     itemId: input.item.id,
     lenderId: input.item.lenderId,
-    borrowerId: DEMO_USER_ID,
+    borrowerId,
     startDate: input.startDate,
     endDate: input.endDate,
     days: input.days,
@@ -77,8 +84,8 @@ function buildBorrowRequest(input: BorrowRequestInput, eventRequestId?: string):
   }
 }
 
-export function createBorrowRequest(input: BorrowRequestInput): BorrowRequest {
-  const request = buildBorrowRequest(input)
+export function createBorrowRequest(input: BorrowRequestInput, borrowerId: string): BorrowRequest {
+  const request = buildBorrowRequest(input, borrowerId)
   commit({ ...state, borrowRequests: [request, ...state.borrowRequests] })
   return request
 }
@@ -92,12 +99,12 @@ export interface EventRequestInput {
 }
 
 /** Creates one event request plus a borrow request per item, since each lender approves separately. */
-export function createEventRequest(input: EventRequestInput): EventRequest {
+export function createEventRequest(input: EventRequestInput, borrowerId: string): EventRequest {
   const eventId = newId('ev')
-  const borrowRequests = input.items.map((item) => buildBorrowRequest(item, eventId))
+  const borrowRequests = input.items.map((item) => buildBorrowRequest(item, borrowerId, eventId))
   const eventRequest: EventRequest = {
     id: eventId,
-    borrowerId: DEMO_USER_ID,
+    borrowerId,
     description: input.description,
     eventTitle: input.eventTitle,
     startDate: input.startDate,

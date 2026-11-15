@@ -6,16 +6,20 @@ import {
   Heart,
   MapPin,
   Package,
+  RotateCcw,
 } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
+import { useAuthState } from "../auth/AuthContext";
+import { clearPendingIntent, peekPendingIntent } from "../auth/pendingAction";
 import AvailabilityBadge from "../components/AvailabilityBadge";
 import DateRangeFields from "../components/DateRangeFields";
 import ItemIllustration from "../components/ItemIllustration";
-import { useLoginPrompt } from "../components/LoginPrompt";
+import ItemsStatus from "../components/ItemsStatus";
+import { useGatedPlaceholder, useRequireAuth } from "../components/LoginPrompt";
 import RatingInline from "../components/RatingInline";
 import { getCategoryLabel } from "../data/categories";
-import { getItem } from "../data/items";
 import { getUser } from "../data/users";
+import { useItems } from "../hooks/useItems";
 import { getAvailability, upcomingBookings } from "../lib/availability";
 import { quoteBorrow } from "../lib/borrowing";
 import { formatRange, todayISO } from "../lib/dates";
@@ -31,7 +35,16 @@ const initials = (name: string) =>
     .slice(0, 2);
 
 export default function ItemDetailPage({ id }: { id: number }) {
+  const { getItem, status, reload } = useItems();
   const item = getItem(id);
+
+  if (!item && status !== "ready") {
+    return (
+      <div className="container page">
+        <ItemsStatus status={status} onRetry={reload} />
+      </div>
+    );
+  }
 
   if (!item) {
     return (
@@ -55,15 +68,25 @@ export default function ItemDetailPage({ id }: { id: number }) {
 }
 
 function ItemDetail({ item }: { item: Item }) {
-  const promptLogin = useLoginPrompt();
+  const gatedPlaceholder = useGatedPlaceholder();
+  const requireAuth = useRequireAuth();
+  const { user } = useAuthState();
   const lender = getUser(item.lenderId);
   const lenderName = lender?.displayName ?? "the lender";
   const today = todayISO();
   const availability = getAvailability(item, today);
   const bookings = upcomingBookings(item, today);
 
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  // Dates picked before logging in come back here afterwards.
+  const [restored] = useState(() =>
+    peekPendingIntent("borrow", (intent) => intent.itemId === item.id),
+  );
+  useEffect(() => {
+    if (restored) clearPendingIntent();
+  }, [restored]);
+
+  const [startDate, setStartDate] = useState(restored?.startDate ?? "");
+  const [endDate, setEndDate] = useState(restored?.endDate ?? "");
   const [attempted, setAttempted] = useState(false);
   const [submitted, setSubmitted] = useState<BorrowRequest | null>(null);
 
@@ -75,14 +98,22 @@ function ItemDetail({ item }: { item: Item }) {
     e.preventDefault();
     setAttempted(true);
     if (!quote.ok) return;
+    const allowed = requireAuth("request", {
+      intent: { kind: "borrow", itemId: item.id, startDate, endDate },
+      label: `your request for ${item.title}`,
+    });
+    if (!allowed || !user) return;
     setSubmitted(
-      createBorrowRequest({
-        item,
-        startDate,
-        endDate,
-        days: quote.days,
-        totalSwitchies: quote.totalSwitchies,
-      }),
+      createBorrowRequest(
+        {
+          item,
+          startDate,
+          endDate,
+          days: quote.days,
+          totalSwitchies: quote.totalSwitchies,
+        },
+        user.id,
+      ),
     );
   };
 
@@ -106,7 +137,7 @@ function ItemDetail({ item }: { item: Item }) {
             <button
               className="card__save"
               aria-label="Favourite item"
-              onClick={() => promptLogin("favourite")}
+              onClick={() => gatedPlaceholder("favourite")}
             >
               <Heart size={18} />
             </button>
@@ -204,6 +235,13 @@ function ItemDetail({ item }: { item: Item }) {
             </div>
           ) : (
             <form onSubmit={handleSubmit} noValidate>
+              {restored && user && (
+                <p className="resume-note" role="status">
+                  <RotateCcw size={16} aria-hidden="true" />
+                  Welcome back. Your dates are saved, so you can send the
+                  request now.
+                </p>
+              )}
               <p className="booking__price">
                 <Coins size={22} aria-hidden="true" />
                 <strong>{item.switchiesPerDay}</strong> Switchies / day

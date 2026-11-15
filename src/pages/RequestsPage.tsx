@@ -1,10 +1,11 @@
 import { CalendarDays, Inbox, LogIn, PartyPopper } from "lucide-react";
+import { useAuthState } from "../auth/AuthContext";
 import ItemIllustration from "../components/ItemIllustration";
-import { getItem } from "../data/items";
 import { getUserName } from "../data/users";
+import { useItems } from "../hooks/useItems";
 import { formatRange } from "../lib/dates";
 import { useRequests } from "../hooks/useRequests";
-import { paths } from "../router";
+import { navigate, paths } from "../router";
 import {
   cancelBorrowRequest,
   cancelEventRequest,
@@ -25,7 +26,60 @@ function StatusPill({ status }: { status: RequestStatus }) {
 }
 
 export default function RequestsPage() {
-  const { borrowRequests, eventRequests } = useRequests();
+  const { status, user } = useAuthState();
+
+  if (status === "signed-in" && user) return <MyRequests userId={user.id} />;
+
+  return (
+    <div className="container page page--narrow">
+      <header className="page__head">
+        <h1>My requests</h1>
+      </header>
+
+      {status === "loading" ? (
+        <p className="muted" role="status">
+          Checking your account...
+        </p>
+      ) : (
+        <>
+          <div className="notice" role="note">
+            <LogIn size={20} aria-hidden="true" />
+            <p>
+              <strong>You need to log in to check on your requests.</strong>{" "}
+              Once you're logged in, you'll see when lenders approve or decline
+              them.
+            </p>
+          </div>
+          {status !== "unavailable" && (
+            <div className="page__actions">
+              <button
+                className="btn btn--primary"
+                onClick={() => navigate(paths.login())}
+              >
+                Log in
+              </button>
+              <button
+                className="btn btn--secondary"
+                onClick={() => navigate(paths.signup())}
+              >
+                Create an account
+              </button>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+function MyRequests({ userId }: { userId: string }) {
+  const all = useRequests();
+  const borrowRequests = all.borrowRequests.filter(
+    (r) => r.borrowerId === userId,
+  );
+  const eventRequests = all.eventRequests.filter(
+    (e) => e.borrowerId === userId,
+  );
   const standalone = borrowRequests.filter((r) => !r.eventRequestId);
   const isEmpty = standalone.length === 0 && eventRequests.length === 0;
 
@@ -34,14 +88,6 @@ export default function RequestsPage() {
       <header className="page__head">
         <h1>My requests</h1>
       </header>
-
-      <div className="notice" role="note">
-        <LogIn size={20} aria-hidden="true" />
-        <p>
-          <strong>You need to log in to check on your requests.</strong> Once
-          you're signed in, you'll see when lenders approve or decline them.
-        </p>
-      </div>
 
       {isEmpty ? (
         <div className="empty">
@@ -136,6 +182,7 @@ function RequestRow({
   request: BorrowRequest;
   cancellable?: boolean;
 }) {
+  const { getItem, status } = useItems();
   const item = getItem(request.itemId);
   return (
     <li className="request-row">
@@ -146,7 +193,9 @@ function RequestRow({
         {item ? (
           <a href={paths.item(item.id)}>{item.title}</a>
         ) : (
-          <strong>Removed item</strong>
+          <strong>
+            {status === "ready" ? "Removed item" : "Loading item..."}
+          </strong>
         )}
         <span className="muted">
           <CalendarDays size={14} aria-hidden="true" />{" "}
@@ -155,7 +204,7 @@ function RequestRow({
           {getUserName(request.lenderId)}
         </span>
       </div>
-      <span className="request-row__price">{request.totalSwitchies} swi</span>
+      <span className="request-row__price">{request.totalSwitchies} Swi.</span>
       <StatusPill status={request.status} />
       {cancellable && request.status === "pending" && (
         <button

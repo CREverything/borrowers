@@ -1,6 +1,6 @@
 import { getCategoryLabel } from "../data/categories";
 import { eventTemplates, fallbackTemplate } from "../data/eventTemplates";
-import { items } from "../data/items";
+import { getItemsState, loadItems } from "./itemsStore";
 import type { EventItemRequirement, EventPlan } from "../types";
 
 /**
@@ -78,9 +78,10 @@ function isPlan(value: unknown): value is EventPlan {
  */
 export const geminiEventPlanner: EventPlanner = {
   async plan(description) {
-    // Until listings live in the database, send the catalog so Gemini can
-    // name items that actually exist on the marketplace.
-    const catalog = items.map((item) => ({
+    // Send the current listings so Gemini can name items that exist on the
+    // marketplace. Wait for them if the page was opened directly.
+    await loadItems();
+    const catalog = getItemsState().items.map((item) => ({
       title: item.title,
       category: getCategoryLabel(item.category),
     }));

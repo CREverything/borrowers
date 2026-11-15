@@ -7,13 +7,13 @@ import { navigate, paths } from "../router";
 import type { Item } from "../types";
 import AvailabilityBadge from "./AvailabilityBadge";
 import ItemIllustration from "./ItemIllustration";
-import { useLoginPrompt } from "./LoginPrompt";
+import { useGatedPlaceholder } from "./LoginPrompt";
 import RatingInline from "./RatingInline";
 
 const stop = (e: MouseEvent) => e.stopPropagation();
 
 export default function ItemCard({ item }: { item: Item }) {
-  const promptLogin = useLoginPrompt();
+  const gatedPlaceholder = useGatedPlaceholder();
   const availability = getAvailability(item);
   const href = paths.item(item.id);
 
@@ -41,7 +41,7 @@ export default function ItemCard({ item }: { item: Item }) {
           aria-label="Favourite item"
           onClick={(e) => {
             stop(e);
-            promptLogin("favourite");
+            gatedPlaceholder("favourite");
           }}
         >
           <Heart size={18} />
@@ -82,7 +82,7 @@ export default function ItemCard({ item }: { item: Item }) {
               className="btn btn--secondary btn--sm"
               onClick={(e) => {
                 stop(e);
-                promptLogin("waitlist");
+                gatedPlaceholder("waitlist");
               }}
             >
               Waitlist

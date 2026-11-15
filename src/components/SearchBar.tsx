@@ -1,5 +1,6 @@
 import { Search } from 'lucide-react'
 import type { FormEvent } from 'react'
+import { scrollToSection } from '../lib/scroll'
 
 interface SearchBarProps {
   query: string
@@ -9,7 +10,7 @@ interface SearchBarProps {
 export default function SearchBar({ query, onQueryChange }: SearchBarProps) {
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault()
-    document.getElementById('browse')?.scrollIntoView({ behavior: 'smooth' })
+    scrollToSection('browse')
   }
 
   return (

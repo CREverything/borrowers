@@ -1,37 +1,48 @@
-import { useEffect, useState } from 'react'
-import Header from './components/Header'
-import { defaultFilters, type MarketplaceFilters } from './lib/marketplace'
-import EventPlannerPage from './pages/EventPlannerPage'
-import HomePage from './pages/HomePage'
-import ItemDetailPage from './pages/ItemDetailPage'
-import RequestsPage from './pages/RequestsPage'
-import SwitchiesPage from './pages/SwitchiesPage'
-import { useRoute, type Route } from './router'
+import { useEffect, useState } from "react";
+import Header from "./components/Header";
+import { defaultFilters, type MarketplaceFilters } from "./lib/marketplace";
+import AuthPage from "./pages/AuthPage";
+import EventPlannerPage from "./pages/EventPlannerPage";
+import HomePage from "./pages/HomePage";
+import ItemDetailPage from "./pages/ItemDetailPage";
+import ProfilePage from "./pages/ProfilePage";
+import RequestsPage from "./pages/RequestsPage";
+import SwitchiesPage from "./pages/SwitchiesPage";
+import { scrollToSection } from "./lib/scroll";
+import { useRoute, type Route } from "./router";
 
 export default function App() {
-  const route = useRoute()
+  const route = useRoute();
   // Lives here so search and filters survive a trip to an item page and back.
-  const [filters, setFilters] = useState<MarketplaceFilters>(defaultFilters)
-  const [showAll, setShowAll] = useState(false)
+  const [filters, setFilters] = useState<MarketplaceFilters>(defaultFilters);
+  const [showAll, setShowAll] = useState(false);
 
   useEffect(() => {
-    if (route.name === 'home' && route.section === 'browse') {
-      requestAnimationFrame(() => document.getElementById('browse')?.scrollIntoView())
+    if (route.name === "home" && route.section === "browse") {
+      // Glide down to the listings rather than jumping.
+      requestAnimationFrame(() => scrollToSection("browse"));
     } else {
-      window.scrollTo(0, 0)
+      // A new page starts at the top straight away.
+      window.scrollTo(0, 0);
     }
-  }, [route])
+  }, [route]);
 
   const renderPage = (r: Route) => {
     switch (r.name) {
-      case 'item':
-        return <ItemDetailPage id={r.id} />
-      case 'plan':
-        return <EventPlannerPage query={r.query} />
-      case 'switchies':
-        return <SwitchiesPage />
-      case 'requests':
-        return <RequestsPage />
+      case "item":
+        return <ItemDetailPage id={r.id} />;
+      case "plan":
+        return <EventPlannerPage query={r.query} />;
+      case "switchies":
+        return <SwitchiesPage />;
+      case "requests":
+        return <RequestsPage />;
+      case "profile":
+        return <ProfilePage />;
+      // One element for both, so state survives switching between them.
+      case "login":
+      case "signup":
+        return <AuthPage mode={r.name} returnTo={r.returnTo} />;
       default:
         return (
           <HomePage
@@ -40,9 +51,9 @@ export default function App() {
             showAll={showAll}
             onShowAll={() => setShowAll(true)}
           />
-        )
+        );
     }
-  }
+  };
 
   return (
     <>
@@ -51,9 +62,9 @@ export default function App() {
       <footer className="footer">
         <div className="container footer__inner">
           <span className="logo logo--small">borrowers</span>
-          <span className="muted">Made by CREverything and PBaghla07</span>
+          <span className="muted">Made by CREverything and Punyah07</span>
         </div>
       </footer>
     </>
-  )
+  );
 }

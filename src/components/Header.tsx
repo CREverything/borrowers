@@ -1,11 +1,16 @@
 import { Plus } from "lucide-react";
 import type { MouseEvent } from "react";
-import { paths, type Route } from "../router";
-import { useLoginPrompt } from "./LoginPrompt";
+import { useAuthState } from "../auth/AuthContext";
+import { scrollToSection, scrollToTop } from "../lib/scroll";
+import { navigate, paths, type Route } from "../router";
+import { useGatedPlaceholder } from "./LoginPrompt";
 import SwitchiesInfo from "./SwitchiesInfo";
+import UserMenu from "./UserMenu";
 
 export default function Header({ route }: { route: Route }) {
-  const promptLogin = useLoginPrompt();
+  const gatedPlaceholder = useGatedPlaceholder();
+  const { status, user } = useAuthState();
+  const onAuthPage = route.name === "login" || route.name === "signup";
 
   const links = [
     {
@@ -28,11 +33,18 @@ export default function Header({ route }: { route: Route }) {
 
   // Clicking a link to the current hash fires no hashchange, so scroll by hand.
   const handleClick = (e: MouseEvent<HTMLAnchorElement>, href: string) => {
-    if (window.location.hash !== href) return;
+    const { pathname, hash } = window.location;
+    if (pathname !== "/" || `/${hash}` !== href) return;
     e.preventDefault();
     if (href === paths.browse)
-      document.getElementById("browse")?.scrollIntoView({ behavior: "smooth" });
-    else window.scrollTo({ top: 0, behavior: "smooth" });
+      scrollToSection("browse");
+    else scrollToTop();
+  };
+
+  // Use the client-side router for auth links, so the return target is kept.
+  const goTo = (e: MouseEvent<HTMLAnchorElement>, to: string) => {
+    e.preventDefault();
+    navigate(to);
   };
 
   return (
@@ -58,14 +70,38 @@ export default function Header({ route }: { route: Route }) {
 
         <div className="header__actions">
           <SwitchiesInfo />
-          <button className="btn btn--secondary">Sign in</button>
+
+          {(status === "signed-out" || status === "unavailable") && !onAuthPage && (
+            <>
+              <a
+                className="btn btn--ghost"
+                href={paths.login()}
+                onClick={(e) => goTo(e, paths.login())}
+              >
+                Log in
+              </a>
+              <a
+                className="btn btn--secondary"
+                href={paths.signup()}
+                onClick={(e) => goTo(e, paths.signup())}
+              >
+                Sign up
+              </a>
+            </>
+          )}
+          {status === "loading" && (
+            <span className="avatar avatar--placeholder" aria-hidden="true" />
+          )}
+
           <button
             className="btn btn--primary"
-            onClick={() => promptLogin("lend")}
+            onClick={() => gatedPlaceholder("lend")}
           >
             <Plus size={18} />
             Lend an item
           </button>
+
+          {status === "signed-in" && user && <UserMenu user={user} />}
         </div>
       </div>
     </header>

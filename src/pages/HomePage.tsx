@@ -2,10 +2,11 @@ import { Coins, SearchX } from "lucide-react";
 import CategoryFilter from "../components/CategoryFilter";
 import EventPlannerBanner from "../components/EventPlannerBanner";
 import ItemCard from "../components/ItemCard";
+import ItemsStatus from "../components/ItemsStatus";
 import MarketplaceControls from "../components/MarketplaceControls";
 import SearchBar from "../components/SearchBar";
 import { getCategoryLabel } from "../data/categories";
-import { items } from "../data/items";
+import { useItems } from "../hooks/useItems";
 import {
   defaultFilters,
   filterItems,
@@ -33,6 +34,8 @@ export default function HomePage({
   const update = (patch: Partial<MarketplaceFilters>) =>
     onFiltersChange({ ...filters, ...patch });
 
+  const { items, status, reload } = useItems();
+  const hasListings = items.length > 0;
   const results = filterItems(items, filters);
   const filtered = hasActiveFilters(filters);
   const truncated = !filtered && !showAll && results.length > FEATURED_COUNT;
@@ -42,9 +45,15 @@ export default function HomePage({
     filters.category === "all"
       ? "Popular on campus"
       : getCategoryLabel(filters.category);
-  const countLabel = truncated
-    ? `Showing ${visible.length} of ${results.length} items`
-    : `${results.length} ${results.length === 1 ? "item" : "items"}`;
+  const countLabel = !hasListings
+    ? status === "error"
+      ? "Listings unavailable"
+      : status === "ready"
+        ? "No listings yet"
+        : "Loading items"
+    : truncated
+      ? `Showing ${visible.length} of ${results.length} items`
+      : `${results.length} ${results.length === 1 ? "item" : "items"}`;
 
   return (
     <>
@@ -89,7 +98,9 @@ export default function HomePage({
           />
         </div>
 
-        {visible.length > 0 ? (
+        {!hasListings ? (
+          <ItemsStatus status={status} onRetry={reload} />
+        ) : visible.length > 0 ? (
           <div className="grid">
             {visible.map((item) => (
               <ItemCard key={item.id} item={item} />

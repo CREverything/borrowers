@@ -1,8 +1,5 @@
 import type { User } from '../types'
 
-/** The visitor, until real authentication exists. */
-export const DEMO_USER_ID = 'demo-user'
-
 export const users: User[] = [
   { id: 'u-maya', displayName: 'Maya R.', memberSince: 'Fall 2024', itemsLent: 41 },
   { id: 'u-jordan', displayName: 'Jordan K.', memberSince: 'Spring 2025', itemsLent: 63 },

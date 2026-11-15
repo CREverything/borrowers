@@ -1,0 +1,27 @@
+{
+  "name": "borrowers-backend",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "dev": "node --env-file-if-exists=../.env --env-file-if-exists=.env --disable-warning=ExperimentalWarning --watch src/index.ts",
+    "start": "node --env-file-if-exists=../.env --env-file-if-exists=.env --disable-warning=ExperimentalWarning src/index.ts",
+    "db:check": "node --env-file-if-exists=../.env --env-file-if-exists=.env --disable-warning=ExperimentalWarning src/scripts/checkDb.ts",
+    "db:seed": "node --env-file-if-exists=../.env --env-file-if-exists=.env --disable-warning=ExperimentalWarning src/scripts/seed.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@clerk/express": "2.1.83",
+    "express": "^5.3.0",
+    "pg": "^8.23.1"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^22.20.5",
+    "@types/pg": "^8.23.1",
+    "typescript": "^7.0.2"
+  }
+}

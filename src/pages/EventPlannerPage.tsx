@@ -3,16 +3,25 @@ import {
   Circle,
   CircleCheckBig,
   Coins,
+  RotateCcw,
   Sparkles,
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useAuthState } from "../auth/AuthContext";
+import {
+  clearPendingIntent,
+  peekPendingIntent,
+  type PendingIntent,
+} from "../auth/pendingAction";
 import AvailabilityBadge from "../components/AvailabilityBadge";
 import DateRangeFields from "../components/DateRangeFields";
 import { EVENT_PLACEHOLDER } from "../components/EventPlannerBanner";
 import ItemIllustration from "../components/ItemIllustration";
-import { getItem, items } from "../data/items";
+import ItemsStatus from "../components/ItemsStatus";
+import { useRequireAuth } from "../components/LoginPrompt";
 import { getUserName } from "../data/users";
+import { useItems } from "../hooks/useItems";
 import { getAvailability } from "../lib/availability";
 import { quoteBorrow, type BorrowQuote } from "../lib/borrowing";
 import { addDays, formatRange, todayISO } from "../lib/dates";
@@ -42,12 +51,25 @@ export default function EventPlannerPage({ query }: { query: string }) {
       return;
     }
     const run = ++latestRun.current;
-    setLoading(true);
-    eventPlanner.plan(query).then((result) => {
-      if (run !== latestRun.current) return;
-      setPlan(result);
+    // Coming back from login: reuse the plan they were looking at instead
+    // of asking the AI again, which could return a different checklist.
+    const saved = peekPendingIntent(
+      "event",
+      (intent) => intent.query === query,
+    );
+    if (saved) {
+      setPlan(saved.plan);
       setLoading(false);
-    })
+      return;
+    }
+    setLoading(true);
+    eventPlanner
+      .plan(query)
+      .then((result) => {
+        if (run !== latestRun.current) return;
+        setPlan(result);
+        setLoading(false);
+      })
       .catch(() => {
         if (run !== latestRun.current) return;
         setPlan(null);
@@ -139,10 +161,25 @@ function PlanResults({
   description: string;
 }) {
   const today = todayISO();
-  const [selected, setSelected] = useState<number[]>([]);
-  const [startDate, setStartDate] = useState(addDays(today, 7));
-  const [endDate, setEndDate] = useState(addDays(today, 7));
+  const requireAuth = useRequireAuth();
+  const { user } = useAuthState();
+  // Selections made before logging in come back here afterwards.
+  const [restored] = useState(() =>
+    peekPendingIntent("event", (intent) => intent.query === description),
+  );
+  useEffect(() => {
+    if (restored) clearPendingIntent();
+  }, [restored]);
+
+  const [selected, setSelected] = useState<number[]>(restored?.selected ?? []);
+  const [startDate, setStartDate] = useState(
+    restored?.startDate ?? addDays(today, 7),
+  );
+  const [endDate, setEndDate] = useState(
+    restored?.endDate ?? addDays(today, 7),
+  );
   const [submitted, setSubmitted] = useState<EventRequest | null>(null);
+  const { items, getItem, status, reload } = useItems();
 
   const requirements = useMemo(
     () =>
@@ -150,7 +187,7 @@ function PlanResults({
         req,
         matches: matchListings(req, items),
       })),
-    [plan],
+    [plan, items],
   );
 
   const toggle = (id: number) =>
@@ -181,28 +218,49 @@ function PlanResults({
 
   const handleSubmit = () => {
     if (!valid) return;
+    const intent: PendingIntent = {
+      kind: "event",
+      query: description,
+      plan,
+      selected,
+      startDate,
+      endDate,
+    };
+    const allowed = requireAuth("event-request", {
+      intent,
+      label: `your event request for ${plan.title}`,
+    });
+    if (!allowed || !user) return;
     setSubmitted(
-      createEventRequest({
-        description,
-        eventTitle: plan.title,
-        startDate,
-        endDate,
-        items: selectedItems.map((item) => {
-          const quote = quotes.get(item.id) as Extract<
-            BorrowQuote,
-            { ok: true }
-          >;
-          return {
-            item,
-            startDate,
-            endDate,
-            days: quote.days,
-            totalSwitchies: quote.totalSwitchies,
-          };
-        }),
-      }),
+      createEventRequest(
+        {
+          description,
+          eventTitle: plan.title,
+          startDate,
+          endDate,
+          items: selectedItems.map((item) => {
+            const quote = quotes.get(item.id) as Extract<
+              BorrowQuote,
+              { ok: true }
+            >;
+            return {
+              item,
+              startDate,
+              endDate,
+              days: quote.days,
+              totalSwitchies: quote.totalSwitchies,
+            };
+          }),
+        },
+        user.id,
+      ),
     );
   };
+
+  // Matching needs listings; without them every requirement would look unmet.
+  if (items.length === 0) {
+    return <ItemsStatus status={status} onRetry={reload} />;
+  }
 
   return (
     <div className="planner-layout">
@@ -301,6 +359,13 @@ function PlanResults({
         ) : (
           <>
             <h2>Your event request</h2>
+            {restored && user && (
+              <p className="resume-note" role="status">
+                <RotateCcw size={16} aria-hidden="true" />
+                Welcome back. Your items and dates are saved, so you can send
+                the request now.
+              </p>
+            )}
             <DateRangeFields
               start={startDate}
               end={endDate}
@@ -332,7 +397,7 @@ function PlanResults({
                         )}
                       </div>
                       <span className="summary-list__price">
-                        {quote?.ok ? `${quote.totalSwitchies} swi` : "—"}
+                        {quote?.ok ? `${quote.totalSwitchies} Swi.` : "—"}
                       </span>
                       <button
                         className="icon-btn"
@@ -397,7 +462,7 @@ function MatchRow({ item, checked, onToggle }: MatchRowProps) {
           <AvailabilityBadge summary={getAvailability(item)} />
         </span>
         <span className="match__price">
-          <strong>{item.switchiesPerDay}</strong> swi / day
+          <strong>{item.switchiesPerDay}</strong> Swi. / day
         </span>
       </label>
       <a className="match__link" href={paths.item(item.id)}>
