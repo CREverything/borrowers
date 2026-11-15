@@ -27,7 +27,7 @@ const perks = [
 ];
 
 export default function AuthPage({ mode, returnTo: fromUrl }: AuthPageProps) {
-  const { status } = useAuthState();
+  const { status, unavailableReason } = useAuthState();
   const [returnTo] = useState(() => resolveReturnHash(fromUrl));
   const [pendingLabel] = useState(() => getPendingLabel(returnTo));
   const afterAuthUrl = `/${returnTo}`;
@@ -85,6 +85,7 @@ export default function AuthPage({ mode, returnTo: fromUrl }: AuthPageProps) {
             <p className="muted">
               You can keep browsing and planning events in the meantime.
             </p>
+            {unavailableReason && <p role="alert">{unavailableReason}</p>}
             <a className="btn btn--secondary" href={paths.browse}>
               Back to marketplace
             </a>

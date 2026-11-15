@@ -54,7 +54,9 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react(), borrowersApi(env.GOOGLE_API_KEY, env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL)],
-    server: { proxy },
-    preview: { proxy },
+    // Clerk's authorized parties use these origins. Fail clearly if a port
+    // is busy instead of moving to an origin the backend will reject.
+    server: { port: 5173, strictPort: true, proxy },
+    preview: { port: 4173, strictPort: true, proxy },
   };
 });

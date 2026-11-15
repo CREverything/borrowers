@@ -31,6 +31,8 @@ export interface AuthUser {
 
 export interface AuthState {
   status: AuthStatus;
+  /** Local development diagnosis; never contains a key or token. */
+  unavailableReason?: string;
   user: AuthUser | null;
   /** A short-lived session token for our API. Never store it; ask again per request. */
   getToken: () => Promise<string | null>;
@@ -65,9 +67,18 @@ function keyProblem(key: string | undefined): string | null {
 const keyIssue = keyProblem(publishableKey);
 if (keyIssue) console.warn(`[borrowers] ${keyIssue}. Login is turned off.`);
 
+const unavailableState: AuthState = {
+  ...unavailable,
+  unavailableReason: import.meta.env.DEV
+    ? keyIssue
+      ? `${keyIssue}. Set VITE_CLERK_PUBLISHABLE_KEY to the publishable key (pk_...) from your Clerk application in the project root configuration, then restart the development server. Gemini keys do not configure Clerk.`
+      : "Clerk could not load in this browser. Check the browser console and Network tab for failed Clerk requests. Confirm the publishable key belongs to an active Clerk application and check whether a browser extension or network filter is blocking Clerk."
+    : undefined,
+};
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   if (keyIssue) {
-    return <AuthContext.Provider value={unavailable}>{children}</AuthContext.Provider>;
+    return <AuthContext.Provider value={unavailableState}>{children}</AuthContext.Provider>;
   }
 
   return (
@@ -95,7 +106,7 @@ function ClerkBridge({ children }: { children: ReactNode }) {
   const [failed, setFailed] = useState(false);
 
   const value = useMemo<AuthState>(() => {
-    if (failed) return unavailable;
+    if (failed) return unavailableState;
     const status: AuthStatus = !isLoaded
       ? "loading"
       : isSignedIn && user
