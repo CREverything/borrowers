@@ -6338,3 +6338,204 @@ a.lender:hover .lender__name,
 .booking__message {
   background: var(--surface);
 }
+
+/* ---------- Favourites button beside chat ----------
+   Chat's window (370px wide at right: 24px) and its minimised bar sit in the
+   same corner as the favourites button, so the button steps to their left. */
+.favourites-dock {
+  transition: right 0.2s ease, bottom 0.2s ease;
+}
+
+body:has(.chat-window:not([hidden])) .favourites-dock {
+  right: calc(24px + min(370px, 100vw - 32px) + 16px);
+}
+
+/* Left of the minimised chat bar, bottoms lined up. The bar reports its width. */
+body:has(.chat-minimized) .favourites-dock {
+  right: calc(24px + var(--chat-minimized-width, 220px) + 12px);
+  bottom: 20px;
+}
+
+/* On phones the chat window fills the screen, so the button hides until it closes. */
+@media (max-width: 640px) {
+  body:has(.chat-window:not([hidden])) .favourites-dock {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .favourites-dock {
+    transition: none;
+  }
+}
+
+/* One line that fades out when too long (same fade as item card titles). */
+.fade-text {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.fade-text--fade {
+  -webkit-mask-image: linear-gradient(to right, #000 75%, transparent);
+  mask-image: linear-gradient(to right, #000 75%, transparent);
+}
+
+/* Name length caps in the chat window heading and the minimised bar. */
+.chat-heading__name .chat-heading__title {
+  max-width: 220px;
+  text-overflow: clip;
+}
+
+.chat-minimized__name {
+  max-width: 140px;
+}
+
+/* Long profile names step down in size so they stay readable in one or two lines.
+   A single unbroken word still wraps, but at a size where that looks deliberate. */
+.profile h1.profile__name--l {
+  font-size: 28px;
+  line-height: 1.2;
+}
+
+.profile h1.profile__name--xl {
+  font-size: 22px;
+  line-height: 1.25;
+}
+
+/* Let the name column shrink next to the avatar instead of pushing it around. */
+.profile > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.profile > .avatar {
+  flex-shrink: 0;
+}
+
+@media (max-width: 600px) {
+  .profile h1.profile__name--l {
+    font-size: 24px;
+  }
+
+  .profile h1.profile__name--xl {
+    font-size: 19px;
+  }
+}
+
+/* ---------- Report an issue ---------- */
+
+/* Quiet secondary action: text-sized, muted, no button chrome. */
+.report-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 0;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.report-link:hover {
+  color: var(--indigo);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.request-row__report {
+  flex-basis: 100%;
+  display: flex;
+  justify-content: flex-end;
+  margin-top: -6px;
+}
+
+.loan-card__report {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.report-ref {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--lavender-soft);
+}
+
+.report-id {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+}
+
+.report-id code,
+.my-reports__id {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
+.report-id code {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--floral);
+  border: 1px solid var(--border);
+}
+
+.my-reports {
+  margin-top: 20px;
+}
+
+.my-reports__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.my-reports__list li {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--floral);
+}
+
+.my-reports__main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.my-reports__id {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.my-reports__status {
+  flex-shrink: 0;
+  background: var(--lavender-soft);
+  color: var(--indigo);
+}
+
+.my-reports__status--open {
+  background: var(--jasmine-soft);
+  color: var(--limited-text);
+}
+
+.my-reports__status--resolved {
+  background: rgba(46, 138, 87, 0.12);
+  color: var(--ok-text);
+}

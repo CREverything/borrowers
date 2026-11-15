@@ -127,7 +127,11 @@ function Bar({ route }: { route: Route }) {
   const urgent = urgentFirst(
     // A return the lender hasn't confirmed still counts as overdue (but isn't "due soon").
     borrowRequests.filter(
-      (r) => r.stage === "active" || (r.stage === "return_pending" && !!r.returnDueAt && Date.parse(r.returnDueAt) < now),
+      (r) =>
+        r.stage === "active" ||
+        (r.stage === "return_pending" &&
+          !!r.returnDueAt &&
+          Date.parse(r.returnDueAt) < now),
     ),
     now,
   );
@@ -216,15 +220,6 @@ function Bar({ route }: { route: Route }) {
                 </li>
                 <li>
                   <a
-                    className="activity__stat"
-                    href={paths.borrowing("active")}
-                  >
-                    <ShoppingBag size={16} aria-hidden="true" />
-                    <strong>{count(borrowed)}</strong> borrowed
-                  </a>
-                </li>
-                <li>
-                  <a
                     className={`activity__stat${pending > 0 ? " activity__stat--alert" : ""}`}
                     href={paths.lendingSection("waiting")}
                   >
@@ -233,6 +228,15 @@ function Bar({ route }: { route: Route }) {
                     {pending === 1 || !summary
                       ? "pending approval"
                       : "pending approval"}
+                  </a>
+                </li>
+                <li>
+                  <a
+                    className="activity__stat"
+                    href={paths.borrowing("active")}
+                  >
+                    <ShoppingBag size={16} aria-hidden="true" />
+                    <strong>{count(borrowed)}</strong> borrowed
                   </a>
                 </li>
               </ul>

@@ -26,6 +26,7 @@ import type { BorrowRequest, ISODate } from "../types";
 import DateTimeField from "./DateTimeField";
 import Dialog from "./Dialog";
 import ItemIllustration from "./ItemIllustration";
+import { ReportIssueButton } from "./ReportIssue";
 
 const titleOf = (r: BorrowRequest) => r.itemTitle || "this item";
 
@@ -170,6 +171,10 @@ export function LoanCard({
             </button>
           </div>
         )}
+        {/* Secondary and quiet: available even while a return awaits confirmation. */}
+        <div className="loan-card__report">
+          <ReportIssueButton request={r} />
+        </div>
       </div>
     </article>
   );

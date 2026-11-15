@@ -277,10 +277,19 @@ function MessagingSession({ children }: { children: ReactNode }) {
         loadMore,
         select,
         toggleInbox: () => {
-          if (requireAuth("message")) {
-            setInboxOpen((v) => !v);
-            void refresh();
+          if (!requireAuth("message")) return;
+          if (active) {
+            // A conversation is open: the header button brings it back up
+            // (un-minimising it) rather than showing the inbox popup over it.
+            setMinimized(false);
+            setInboxOpen(false);
+            requestAnimationFrame(() =>
+              document.querySelector<HTMLTextAreaElement>(".chat-composer textarea")?.focus(),
+            );
+            return;
           }
+          setInboxOpen((v) => !v);
+          void refresh();
         },
         start: (itemId) => {
           void start({ itemId });

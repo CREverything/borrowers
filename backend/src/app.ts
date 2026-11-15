@@ -8,6 +8,7 @@ import { createItemsRouter, createMyItemsRouter } from "./routes/items.ts";
 import { createFavouritesRouter } from "./routes/favourites.ts";
 import { createMeRouter } from "./routes/me.ts";
 import { createPlansRouter } from "./routes/plans.ts";
+import { createReportsRouter } from "./routes/reports.ts";
 import { createRequestsRouter } from "./routes/requests.ts";
 import { usersRouter } from "./routes/users.ts";
 import { ensureUserProfile, type FetchProfile } from "./users/profiles.ts";
@@ -47,6 +48,7 @@ export function createApp({ auth, requireUser: requireUserOverride, fetchProfile
   app.use("/api/users", usersRouter);
   app.use("/api/favourites", createFavouritesRouter(protect));
   app.use("/api/plans", createPlansRouter(protect));
+  app.use("/api/reports", createReportsRouter(protect));
   app.use("/api", createRequestsRouter(protect));
 
   app.use("/api", (_req, res) => {

@@ -15,8 +15,14 @@ const demoNames: Record<string, string> = {
 }
 
 /** The full name, tidied. Only shown on profile pages. */
+/** Longest name shown anywhere, in characters. Matches the backend. */
+export const MAX_NAME_LENGTH = 70
+
+/** Cuts text to `max` characters without splitting an emoji or accented letter. */
+const capChars = (text: string, max: number) => Array.from(text).slice(0, max).join('').trim()
+
 export function fullName(name: string | null | undefined): string {
-  return name?.trim().replace(/\s+/g, ' ') ?? ''
+  return capChars(name?.trim().replace(/\s+/g, ' ') ?? '', MAX_NAME_LENGTH)
 }
 
 /**
@@ -24,11 +30,25 @@ export function fullName(name: string | null | undefined): string {
  * except profile pages. Safe to apply twice: "Maya R." stays "Maya R.".
  */
 export function shortName(name: string | null | undefined): string {
-  const parts = fullName(name).split(' ').filter(Boolean)
+  // Split the whole name (not the capped one) so a long first name can't hide the surname.
+  const parts = (name ?? '').trim().split(/\s+/).filter(Boolean)
   if (parts.length === 0) return ''
-  if (parts.length === 1) return parts[0]
+  if (parts.length === 1) return capChars(parts[0], MAX_NAME_LENGTH)
   const initial = Array.from(parts[parts.length - 1])[0]?.toUpperCase() ?? ''
-  return `${parts[0]} ${initial}.`
+  // Keep room for the initial so "First L." stays within the cap.
+  return `${capChars(parts[0], MAX_NAME_LENGTH - 3)} ${initial}.`
+}
+
+/**
+ * A class that shrinks a profile heading for long names, so up to 70
+ * characters still fit in one or two lines instead of a tall wall of text.
+ */
+export function nameSizeClass(name: string): string {
+  const length = Array.from(name).length
+  const longestWord = Math.max(0, ...name.split(/\s+/).map((w) => Array.from(w).length))
+  if (length > 45 || longestWord > 22) return 'profile__name profile__name--xl'
+  if (length > 26 || longestWord > 14) return 'profile__name profile__name--l'
+  return 'profile__name'
 }
 
 /** A first initial for avatar placeholders. */

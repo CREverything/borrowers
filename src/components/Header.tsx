@@ -101,7 +101,7 @@ export default function Header({ route }: { route: Route }) {
           {status === "signed-in" && (
             <button
               type="button"
-              className={`bell${messaging.inboxOpen ? " bell--active" : ""}`}
+              className={`bell${messaging.inboxOpen || (messaging.active && !messaging.minimized) ? " bell--active" : ""}`}
               onClick={messaging.toggleInbox}
               aria-label={`Messages${messaging.unreadCount ? `, ${messaging.unreadCount} unread` : ""}`}
               aria-expanded={messaging.inboxOpen}

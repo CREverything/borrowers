@@ -43,8 +43,14 @@ export async function ensureUserProfile(
 }
 
 /** The full stored profile name, tidied. Only shown on profile pages. */
+/** Longest name shown anywhere, in characters. */
+export const MAX_NAME_LENGTH = 70;
+
+/** Cuts text to `max` characters without splitting an emoji or accented letter. */
+const capChars = (text: string, max: number) => Array.from(text).slice(0, max).join("").trim();
+
 export function fullName(name?: string | null): string {
-  return name?.trim().replace(/\s+/g, " ") ?? "";
+  return capChars(name?.trim().replace(/\s+/g, " ") ?? "", MAX_NAME_LENGTH);
 }
 
 /**
@@ -52,10 +58,12 @@ export function fullName(name?: string | null): string {
  * except profile pages. A single-word name is returned as is.
  */
 export function shortName(name?: string | null): string {
-  const parts = fullName(name).split(" ").filter(Boolean);
+  // Split the whole name (not the capped one) so a long first name can't hide the surname.
+  const parts = (name ?? "").trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return "";
   const first = parts[0];
-  if (parts.length === 1) return first;
+  if (parts.length === 1) return capChars(first, MAX_NAME_LENGTH);
   const initial = Array.from(parts[parts.length - 1])[0]?.toUpperCase() ?? "";
-  return `${first} ${initial}.`;
+  // A very long first name could push "First L." past the cap, so keep room for the initial.
+  return `${capChars(first, MAX_NAME_LENGTH - 3)} ${initial}.`;
 }

@@ -33,6 +33,7 @@ import {
 import { useRequests } from "../hooks/useRequests";
 import { navigate, paths, type BorrowingView, type LendingSection } from "../router";
 import { ExtensionDialog, LoanCard, ReturnDialog } from "../components/LoanCard";
+import { ReportIssueButton } from "../components/ReportIssue";
 import { useNow } from "../hooks/useNow";
 import { formatDuration, lateFee, parseTime, urgencyOf } from "../lib/deadline";
 import { scrollToSection } from "../lib/scroll";
@@ -937,6 +938,9 @@ function RequestRow({
         <StatusPill request={request} asLender={asLender} />
       )}
       {children}
+      <span className="request-row__report">
+        <ReportIssueButton request={request} />
+      </span>
     </li>
   );
 }

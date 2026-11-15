@@ -1,4 +1,5 @@
 import { ArrowLeft, MessageCircle, Package, UserRoundX } from "lucide-react";
+import { nameSizeClass } from "../data/users";
 import { useAuthState } from "../auth/AuthContext";
 import { useMessaging } from "../components/MessagingProvider";
 import ItemCard from "../components/ItemCard";
@@ -65,7 +66,7 @@ export default function UserPage({ id }: { id: string }) {
         <Avatar name={name} imageUrl={profile.avatarUrl} size={88} />
         <div>
           <div className="profile__name-row">
-            <h1>{name}</h1>
+            <h1 className={nameSizeClass(name)}>{name}</h1>
             {!isMe && (
               <button
                 type="button"

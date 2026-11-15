@@ -1,4 +1,6 @@
 import { Coins, ExternalLink, LogIn, Mail, ShieldCheck, ShieldQuestion } from "lucide-react";
+import { MyReports } from "../components/ReportIssue";
+import { nameSizeClass } from "../data/users";
 import { useEffect, useState } from "react";
 import { useAuthState, type AuthUser } from "../auth/AuthContext";
 import { ProfileAvatar } from "../components/UserMenu";
@@ -73,7 +75,7 @@ function Profile({ user }: { user: AuthUser }) {
       <header className="profile">
         <ProfileAvatar user={user} size={88} />
         <div>
-          <h1>{user.name}</h1>
+          <h1 className={nameSizeClass(user.name)}>{user.name}</h1>
           {user.email && (
             <p className="profile__email">
               <Mail size={16} aria-hidden="true" />
@@ -135,6 +137,8 @@ function Profile({ user }: { user: AuthUser }) {
           </div>
         </section>
       </div>
+
+      <MyReports />
     </div>
   );
 }

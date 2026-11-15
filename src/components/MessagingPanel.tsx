@@ -1,5 +1,20 @@
-import { Flag, MessageCircle, Minus, Package, Send, ShieldBan, X } from "lucide-react";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
+import {
+  Flag,
+  MessageCircle,
+  Minus,
+  Package,
+  Send,
+  ShieldBan,
+  X,
+} from "lucide-react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
 import { useAuthState } from "../auth/AuthContext";
 import { paths, navigate } from "../router";
 import {
@@ -9,12 +24,36 @@ import {
   type HistoryPage,
 } from "../services/messagingApi";
 import Dialog from "./Dialog";
+import FadeText from "./FadeText";
 import { iconChoices } from "./ItemIllustration";
 import { useMessaging } from "./MessagingProvider";
 import { Avatar } from "./UserMenu";
 
+/**
+ * The minimised chat bar's width depends on the other person's name, so it
+ * publishes its width as --chat-minimized-width; other corner widgets (the
+ * favourites button) use it to sit beside the bar instead of under it.
+ */
+let minimizedObserver: ResizeObserver | null = null;
+function publishMinimizedWidth(el: HTMLDivElement | null) {
+  const root = document.documentElement;
+  minimizedObserver?.disconnect();
+  minimizedObserver = null;
+  if (!el) {
+    root.style.removeProperty("--chat-minimized-width");
+    return;
+  }
+  minimizedObserver = new ResizeObserver(() =>
+    root.style.setProperty("--chat-minimized-width", `${el.offsetWidth}px`),
+  );
+  minimizedObserver.observe(el);
+}
+
 const time = (value: string) =>
-  new Date(value).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  new Date(value).toLocaleTimeString([], {
+    hour: "numeric",
+    minute: "2-digit",
+  });
 const dateTime = (value: string) =>
   new Date(value).toLocaleString([], {
     month: "short",
@@ -28,17 +67,27 @@ function mergeMessages(old: ChatMessage[], incoming: ChatMessage[]) {
     const prior = map.get(m.id);
     map.set(m.id, { ...m, readAt: m.readAt ?? prior?.readAt ?? null });
   });
-  return Array.from(map.values()).sort((a, b) => (BigInt(a.id) < BigInt(b.id) ? -1 : 1));
+  return Array.from(map.values()).sort((a, b) =>
+    BigInt(a.id) < BigInt(b.id) ? -1 : 1,
+  );
 }
 export default function MessagingPanel() {
   const chat = useMessaging();
   return (
     <>
       {chat.inboxOpen && (
-        <section className="messages-inbox" id="messages-inbox" aria-label="Messages inbox">
+        <section
+          className="messages-inbox"
+          id="messages-inbox"
+          aria-label="Messages inbox"
+        >
           <div className="chat-heading">
             <h2>Messages</h2>
-            <button className="chat-icon" aria-label="Close inbox" onClick={chat.toggleInbox}>
+            <button
+              className="chat-icon"
+              aria-label="Close inbox"
+              onClick={chat.toggleInbox}
+            >
               <X size={19} />
             </button>
           </div>
@@ -58,8 +107,8 @@ export default function MessagingPanel() {
             ) : chat.conversations.length === 0 && !chat.error ? (
               <div className="chat-empty">
                 <MessageCircle size={30} aria-hidden="true" />
-                <h3>A little hello goes a long way</h3>
-                <p>Message a lender from a listing to arrange your next borrow.</p>
+                <h3>Communication is key!</h3>
+                <p>Message a lender to arrange your next borrow.</p>
               </div>
             ) : null}
             {chat.conversations.map((c) => (
@@ -71,7 +120,9 @@ export default function MessagingPanel() {
                 <Avatar name={c.otherName} imageUrl={c.otherAvatar} size={40} />
                 <span className="inbox-conversation__copy">
                   <strong>{c.otherName}</strong>
-                  <span>{c.isDirect ? "Direct conversation" : c.item?.title}</span>
+                  <span>
+                    {c.isDirect ? "Direct conversation" : c.item?.title}
+                  </span>
                   <span className="muted">
                     {c.lastMessage?.content ??
                       (c.isDirect ? "Say hello" : "Say hello about this item")}
@@ -81,7 +132,10 @@ export default function MessagingPanel() {
                   </time>
                 </span>
                 {c.unreadCount > 0 && (
-                  <span className="chat-unread" aria-label={`${c.unreadCount} unread messages`}>
+                  <span
+                    className="chat-unread"
+                    aria-label={`${c.unreadCount} unread messages`}
+                  >
                     {c.unreadCount}
                   </span>
                 )}
@@ -99,13 +153,17 @@ export default function MessagingPanel() {
           </div>
         </section>
       )}
-      {chat.active && <ChatWindow key={chat.active.id} conversation={chat.active} />}
+      {chat.active && (
+        <ChatWindow key={chat.active.id} conversation={chat.active} />
+      )}
     </>
   );
 }
 function ChatWindow({ conversation: c }: { conversation: Conversation }) {
   const chat = useMessaging();
-  const ItemIcon = iconChoices.find((choice) => choice.key === c.item?.iconKey)?.icon ?? Package;
+  const ItemIcon =
+    iconChoices.find((choice) => choice.key === c.item?.iconKey)?.icon ??
+    Package;
   const { user, getToken } = useAuthState();
   const tokenRef = useRef(getToken);
   tokenRef.current = getToken;
@@ -144,7 +202,11 @@ function ChatWindow({ conversation: c }: { conversation: Conversation }) {
   const [readAttempt, setReadAttempt] = useState(0);
   const api = useCallback(
     <T,>(path: string, body?: unknown) =>
-      messagingApi<T>(() => tokenRef.current(), `/conversations/${c.id}${path}`, body),
+      messagingApi<T>(
+        () => tokenRef.current(),
+        `/conversations/${c.id}${path}`,
+        body,
+      ),
     [c.id],
   );
 
@@ -216,13 +278,18 @@ function ChatWindow({ conversation: c }: { conversation: Conversation }) {
       if (event.conversationId !== c.id) return;
       setMessages((old) =>
         old.map((m) =>
-          m.senderId !== event.readerId && BigInt(m.id) <= BigInt(event.throughId)
+          m.senderId !== event.readerId &&
+          BigInt(m.id) <= BigInt(event.throughId)
             ? { ...m, readAt: m.readAt ?? event.readAt }
             : m,
         ),
       );
     };
-    const type = (event: { conversationId: string; userId: string; typing: boolean }) => {
+    const type = (event: {
+      conversationId: string;
+      userId: string;
+      typing: boolean;
+    }) => {
       if (event.conversationId !== c.id || event.userId === user?.id) return;
       setTyping(event.typing);
       window.clearTimeout(typingTimeout.current);
@@ -241,15 +308,26 @@ function ChatWindow({ conversation: c }: { conversation: Conversation }) {
     const el = scroll.current;
     if (!el) return;
     if (anchor.current) {
-      el.scrollTop = anchor.current.top + el.scrollHeight - anchor.current.height;
+      el.scrollTop =
+        anchor.current.top + el.scrollHeight - anchor.current.height;
       anchor.current = null;
     } else if (pinned.current) el.scrollTop = el.scrollHeight;
   }, [messages, loading, chat.minimized, typing]);
   useEffect(() => {
-    if (chat.minimized || !focused || !atBottom || loading || !messages.length || markBusy.current)
+    if (
+      chat.minimized ||
+      !focused ||
+      !atBottom ||
+      loading ||
+      !messages.length ||
+      markBusy.current
+    )
       return;
     const last = messages[messages.length - 1];
-    if (lastRead.current === last.id || !messages.some((m) => m.senderId !== user?.id && !m.readAt))
+    if (
+      lastRead.current === last.id ||
+      !messages.some((m) => m.senderId !== user?.id && !m.readAt)
+    )
       return;
     markBusy.current = true;
     let succeeded = false;
@@ -268,13 +346,26 @@ function ChatWindow({ conversation: c }: { conversation: Conversation }) {
         void chat.refresh();
       })
       .catch(() => {
-        if (alive.current) readRetry.current = setTimeout(() => setReadAttempt((n) => n + 1), 4000);
+        if (alive.current)
+          readRetry.current = setTimeout(
+            () => setReadAttempt((n) => n + 1),
+            4000,
+          );
       })
       .finally(() => {
         markBusy.current = false;
         if (alive.current && succeeded) setReadAttempt((n) => n + 1);
       });
-  }, [messages, chat.minimized, focused, atBottom, loading, api, user?.id, readAttempt]);
+  }, [
+    messages,
+    chat.minimized,
+    focused,
+    atBottom,
+    loading,
+    api,
+    user?.id,
+    readAttempt,
+  ]);
   const older = async () => {
     if (loadingOlder || !hasMore || !messages[0]) return;
     setLoadingOlder(true);
@@ -306,7 +397,8 @@ function ChatWindow({ conversation: c }: { conversation: Conversation }) {
     inFlight.current = true;
     setSending(true);
     setError("");
-    if (retry.current?.content !== content) retry.current = { content, nonce: crypto.randomUUID() };
+    if (retry.current?.content !== content)
+      retry.current = { content, nonce: crypto.randomUUID() };
     try {
       const message = await api<ChatMessage>("/messages", {
         content,
@@ -358,17 +450,23 @@ function ChatWindow({ conversation: c }: { conversation: Conversation }) {
   return (
     <>
       {chat.minimized && (
-        <div className="chat-minimized">
+        <div className="chat-minimized" ref={publishMinimizedWidth}>
           <button
             className="btn btn--primary"
             onClick={chat.minimize}
             aria-label={`Reopen chat with ${c.otherName}`}
           >
             <MessageCircle size={19} />
-            {c.otherName}
-            {c.unreadCount > 0 && <span className="chat-unread">{c.unreadCount}</span>}
+            <FadeText text={c.otherName} className="chat-minimized__name" />
+            {c.unreadCount > 0 && (
+              <span className="chat-unread">{c.unreadCount}</span>
+            )}
           </button>
-          <button className="chat-icon" onClick={chat.close} aria-label="Close chat">
+          <button
+            className="chat-icon"
+            onClick={chat.close}
+            aria-label="Close chat"
+          >
             <X size={17} />
           </button>
         </div>
@@ -381,8 +479,14 @@ function ChatWindow({ conversation: c }: { conversation: Conversation }) {
         <div className="chat-heading">
           <Avatar name={c.otherName} imageUrl={c.otherAvatar} size={36} />
           <div className="chat-heading__name">
-            <strong>{c.otherName}</strong>
-            <span className="small muted">{chat.connected ? "Messages" : "Reconnecting…"}</span>
+            <FadeText
+              as="strong"
+              text={c.otherName}
+              className="chat-heading__title"
+            />
+            <span className="small muted">
+              {chat.connected ? "Messages" : "Reconnecting…"}
+            </span>
           </div>
           <button
             className="chat-icon"
@@ -476,7 +580,8 @@ function ChatWindow({ conversation: c }: { conversation: Conversation }) {
           onScroll={() => {
             const el = scroll.current;
             if (!el) return;
-            pinned.current = el.scrollHeight - el.scrollTop - el.clientHeight < 50;
+            pinned.current =
+              el.scrollHeight - el.scrollTop - el.clientHeight < 50;
             setAtBottom(pinned.current);
             if (el.scrollTop < 30 && !loading) void older();
           }}
@@ -500,10 +605,11 @@ function ChatWindow({ conversation: c }: { conversation: Conversation }) {
                 <div className="chat-empty">
                   <MessageCircle size={28} />
                   <p>
-                    Say hello to {c.otherName}.
-                    {!c.isDirect && " Ask about availability or arrange a pickup."}
+                    Say hello to {c.otherName}.{!c.isDirect}.
                   </p>
-                  <span className="small muted">Messaging is free. No Switchies are spent.</span>
+                  <span className="small muted">
+                    Messaging is free. No Switchies are spent.
+                  </span>
                 </div>
               )}
               {messages.map((m, index) => {
@@ -511,14 +617,21 @@ function ChatWindow({ conversation: c }: { conversation: Conversation }) {
                 const day = new Date(m.createdAt).toLocaleDateString();
                 const newDay =
                   index === 0 ||
-                  new Date(messages[index - 1].createdAt).toLocaleDateString() !== day;
+                  new Date(
+                    messages[index - 1].createdAt,
+                  ).toLocaleDateString() !== day;
                 return (
                   <div key={m.id}>
                     {newDay && <p className="chat-day">{day}</p>}
-                    <div className={`chat-message${own ? " chat-message--own" : ""}`}>
+                    <div
+                      className={`chat-message${own ? " chat-message--own" : ""}`}
+                    >
                       <p>{m.content}</p>
                       <span>
-                        <time dateTime={m.createdAt} title={dateTime(m.createdAt)}>
+                        <time
+                          dateTime={m.createdAt}
+                          title={dateTime(m.createdAt)}
+                        >
                           {time(m.createdAt)}
                         </time>
                         {own && ` · ${m.readAt ? "Seen" : "Sent"}`}
@@ -541,7 +654,8 @@ function ChatWindow({ conversation: c }: { conversation: Conversation }) {
             onClick={() => {
               pinned.current = true;
               setAtBottom(true);
-              if (scroll.current) scroll.current.scrollTop = scroll.current.scrollHeight;
+              if (scroll.current)
+                scroll.current.scrollTop = scroll.current.scrollHeight;
             }}
           >
             Jump to latest messages ↓
@@ -551,14 +665,19 @@ function ChatWindow({ conversation: c }: { conversation: Conversation }) {
           <p className="chat-notice form-error" role="alert">
             {error}{" "}
             {loading === false && messages.length === 0 && (
-              <button className="link-btn" onClick={() => setReload((n) => n + 1)}>
+              <button
+                className="link-btn"
+                onClick={() => setReload((n) => n + 1)}
+              >
                 Retry
               </button>
             )}
           </p>
         )}
         {c.blocked ? (
-          <p className="chat-notice">Messaging is blocked between these accounts.</p>
+          <p className="chat-notice">
+            Messaging is blocked between these accounts.
+          </p>
         ) : (
           <form className="chat-composer" onSubmit={(e) => void send(e)}>
             <label className="sr-only" htmlFor="chat-draft">
@@ -578,7 +697,11 @@ function ChatWindow({ conversation: c }: { conversation: Conversation }) {
               }}
               onBlur={() => emitTyping(false)}
               onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+                if (
+                  e.key === "Enter" &&
+                  !e.shiftKey &&
+                  !e.nativeEvent.isComposing
+                ) {
                   e.preventDefault();
                   void send();
                 }
@@ -593,7 +716,9 @@ function ChatWindow({ conversation: c }: { conversation: Conversation }) {
               <Send size={18} />
             </button>
             <span className="chat-composer__hint">
-              {sending ? "Sending…" : "Enter to send · Shift + Enter for a new line"}
+              {sending
+                ? "Sending…"
+                : "Enter to send · Shift + Enter for a new line"}
               <span>{draft.length}/4000</span>
             </span>
           </form>
@@ -626,7 +751,8 @@ function ChatWindow({ conversation: c }: { conversation: Conversation }) {
                   onChange={(e) => setReason(e.target.value)}
                 />
                 <p className="small muted">
-                  Your report is stored privately for the Borrowers team to review.
+                  Your report is stored privately for the Borrowers team to
+                  review.
                 </p>
               </>
             ) : (
@@ -643,7 +769,9 @@ function ChatWindow({ conversation: c }: { conversation: Conversation }) {
             )}
             <button
               className="btn btn--primary"
-              disabled={moderating || (moderation === "report" && !reason.trim())}
+              disabled={
+                moderating || (moderation === "report" && !reason.trim())
+              }
             >
               {moderating
                 ? "Saving…"

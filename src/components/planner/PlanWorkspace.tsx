@@ -193,7 +193,7 @@ export default function PlanWorkspace({
   );
   const dateIssue =
     !startDate || !endDate
-      ? "Choose the days you'll borrow everything: tap the pick-up day, then the return day. Availability and prices depend on it."
+      ? "Choose a pick-up and return day. Availability and prices depend on it."
       : !draft.startTime || !draft.returnTime
         ? "Now choose a pick-up time and a return time."
         : !startTime || !returnTime

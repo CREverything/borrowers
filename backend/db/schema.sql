@@ -284,3 +284,28 @@ create table if not exists event_plan_requests (
   created_at timestamptz not null default now(),
   primary key (plan_id, request_id)
 );
+
+-- Issue reports about a borrowing, from its borrower or lender. Stored for
+-- review only: a report never changes the borrowing, moves Switchies or
+-- penalises anyone. reviewer_notes are private and never sent to users.
+create table if not exists issue_reports (
+  id uuid primary key default gen_random_uuid(),
+  reporter_id text not null references users (clerk_id),
+  booking_id bigint not null references borrow_requests (id),
+  category text not null check (
+    category in ('damaged', 'not_returned', 'not_as_described', 'pickup_return', 'conduct', 'other')
+  ),
+  description text not null check (length(btrim(description)) between 10 and 1000),
+  status text not null default 'open' check (status in ('open', 'reviewing', 'resolved', 'dismissed')),
+  -- Made by the browser per report form; a retried or double-clicked submit reuses it.
+  client_nonce uuid not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  reviewed_at timestamptz,
+  reviewer_notes text,
+  unique (reporter_id, client_nonce)
+);
+
+create index if not exists issue_reports_reporter_idx on issue_reports (reporter_id, created_at desc);
+create index if not exists issue_reports_status_idx on issue_reports (status, created_at desc);
+create index if not exists issue_reports_booking_idx on issue_reports (booking_id);
