@@ -13,6 +13,7 @@ import { savePendingIntent, type PendingIntent } from "../auth/pendingAction";
 import { currentHash, navigate, paths } from "../router";
 
 export type GatedAction =
+  | "message"
   | "lend"
   | "waitlist"
   | "favourite"
@@ -21,6 +22,7 @@ export type GatedAction =
   | "trade";
 
 const actionText: Record<GatedAction, string> = {
+  message: "message a lender",
   lend: "lend an item",
   waitlist: "waitlist an item",
   favourite: "favourite an item",

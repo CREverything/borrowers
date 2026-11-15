@@ -6,6 +6,7 @@ import {
   Heart,
   Inbox,
   MapPin,
+  MessageCircle,
   Package,
   Pencil,
   RotateCcw,
@@ -13,6 +14,7 @@ import {
 import { useEffect, useState, type FormEvent } from "react";
 import { useAuthState } from "../auth/AuthContext";
 import { clearPendingIntent, peekPendingIntent } from "../auth/pendingAction";
+import { useMessaging } from "../components/MessagingProvider";
 import AvailabilityBadge from "../components/AvailabilityBadge";
 import ItemIllustration from "../components/ItemIllustration";
 import ItemReviews from "../components/ItemReviews";
@@ -68,6 +70,7 @@ export default function ItemDetailPage({ id }: { id: number }) {
 }
 
 function ItemDetail({ item }: { item: Item }) {
+  const messaging = useMessaging();
   const gatedPlaceholder = useGatedPlaceholder();
   const requireAuth = useRequireAuth();
   const { user, getToken } = useAuthState();
@@ -364,13 +367,24 @@ function ItemDetail({ item }: { item: Item }) {
                 </p>
               )}
 
-              <button
-                type="submit"
-                className="btn btn--primary btn--block"
-                disabled={sending}
-              >
-                {sending ? "Sending..." : "Request to Borrow"}
-              </button>
+              <div className="booking__actions">
+                <button
+                  type="submit"
+                  className="btn btn--primary btn--block"
+                  disabled={sending}
+                >
+                  {sending ? "Sending..." : "Request to Borrow"}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn--secondary btn--block booking__message"
+                  onClick={() => messaging.start(item.id)}
+                  disabled={messaging.loading}
+                >
+                  <MessageCircle size={18} aria-hidden="true" />
+                  Message Lender
+                </button>
+              </div>
               <p className="muted small booking__note">
                 Nothing is charged now. Switchies move only after {lenderName}{" "}
                 approves.

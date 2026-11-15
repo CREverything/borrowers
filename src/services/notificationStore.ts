@@ -75,16 +75,21 @@ function queueToasts(userId: string, notifications: AppNotification[]) {
 // Bumped whenever notifications are marked read, so a load that started
 // earlier can't bring back the old unread count when it finishes.
 let readVersion = 0;
+let loadSequence = 0;
 
 export async function loadNotifications(userId: string, getToken: GetToken) {
   if (state.userId !== userId) setState({ ...empty, userId });
   const startedAt = readVersion;
+  const sequence = ++loadSequence;
   try {
     const body = await call<{ notifications: AppNotification[]; unreadCount: number }>(
       "/api/notifications",
       getToken,
     );
-    if (state.userId !== userId) return;
+    if (state.userId !== userId || sequence !== loadSequence || startedAt !== readVersion) return;
+    setToasts(
+      toasts.filter((toast) => !body.notifications.some((n) => n.id === toast.id && n.read)),
+    );
     queueToasts(userId, body.notifications);
     if (startedAt === readVersion) {
       setState({ userId, loaded: true, ...body });

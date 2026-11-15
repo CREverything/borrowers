@@ -3,6 +3,7 @@ import {
   CircleCheckBig,
   CircleX,
   Inbox,
+  MessageCircle,
   PackageCheck,
   Star,
   Undo2,
@@ -14,6 +15,7 @@ import type { AppNotification, NotificationKind } from "../types";
 import { formatDateTime, formatRange } from "./dates";
 
 export const notificationIcons: Record<NotificationKind, LucideIcon> = {
+  message_received: MessageCircle,
   request_received: Inbox,
   request_cancelled: Undo2,
   request_approved: CircleCheckBig,
@@ -40,6 +42,11 @@ export function describeNotification(n: AppNotification): { text: string; href: 
   const borrowing = paths.requests;
 
   switch (n.kind) {
+    case "message_received":
+      return {
+        text: `${shortName(d.senderName) || "A student"} sent you a message${d.itemTitle ? ` about ${d.itemTitle}` : ""}${d.preview ? `: ${d.preview}` : "."}`,
+        href: d.conversationId ? paths.conversation(d.conversationId) : paths.notifications,
+      };
     case "request_received":
       return {
         text: `${borrower} wants to borrow ${item}${range ? ` for ${range}` : ""}${d.eventTitle ? ` (${d.eventTitle})` : ""}.`,
@@ -55,14 +62,20 @@ export function describeNotification(n: AppNotification): { text: string; href: 
     case "request_declined":
       return { text: `${lender} declined your request for ${item}.`, href: borrowing };
     case "return_time_changed":
-      return { text: `${lender} changed the return time for ${item}${due ? ` to ${due}` : ""}.`, href: borrowing };
+      return {
+        text: `${lender} changed the return time for ${item}${due ? ` to ${due}` : ""}.`,
+        href: borrowing,
+      };
     case "item_returned":
       return {
         text: `${lender} marked ${item} as returned.${stars ? ` They gave you ${stars}.` : ""} Leave a review!`,
         href: borrowing,
       };
     case "borrower_rated":
-      return { text: `${lender} gave you ${stars || "a score"} for borrowing ${item}.`, href: borrowing };
+      return {
+        text: `${lender} gave you ${stars || "a score"} for borrowing ${item}.`,
+        href: borrowing,
+      };
     case "review_received":
       return {
         text: `${borrower} left a ${d.rating ?? ""}-star review on ${item}.`,

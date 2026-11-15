@@ -1,14 +1,14 @@
 import { Bell } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAuthState } from "../auth/AuthContext";
+import NotificationLink from "../components/NotificationLink";
 import LoginRequired from "../components/LoginRequired";
 import { useNotifications } from "../hooks/useRequests";
 import { formatDateTime, formatRelative } from "../lib/dates";
 import { describeNotification, notificationIcons as icons } from "../lib/notificationText";
 import { markAllRead } from "../services/notificationStore";
 
-type Filter = "all" | "borrower" | "lender";
-
+type Filter = "all" | "borrower" | "lender" | "messages";
 
 export default function NotificationsPage() {
   const { status } = useAuthState();
@@ -17,9 +17,7 @@ export default function NotificationsPage() {
     <div className="container page page--narrow">
       <header className="page__head">
         <h1>Notifications</h1>
-        <p className="page__lead">
-          Updates on things you're borrowing and lending.
-        </p>
+        <p className="page__lead">Messages and updates on things you're borrowing and lending.</p>
       </header>
       {status === "signed-in" ? (
         <NotificationList />
@@ -55,9 +53,16 @@ function NotificationList() {
     );
   }
 
-  const shown = notifications.filter((n) => filter === "all" || n.role === filter);
+  const shown = notifications.filter(
+    (n) =>
+      filter === "all" ||
+      (filter === "messages"
+        ? n.kind === "message_received"
+        : n.kind !== "message_received" && n.role === filter),
+  );
   const filters: { id: Filter; label: string }[] = [
     { id: "all", label: "All" },
+    { id: "messages", label: "Messages" },
     { id: "borrower", label: "Borrowing" },
     { id: "lender", label: "Lending" },
   ];
@@ -85,33 +90,42 @@ function NotificationList() {
           </span>
           <h3>Nothing here yet</h3>
           <p>
-            {filter === "lender"
-              ? "When someone asks to borrow your things, you'll see it here."
-              : filter === "borrower"
-                ? "When lenders reply to your requests, you'll see it here."
-                : "Requests, approvals, returns and reviews will show up here."}
+            {filter === "messages"
+              ? "New messages from other students will show up here."
+              : filter === "lender"
+                ? "When someone asks to borrow your things, you'll see it here."
+                : filter === "borrower"
+                  ? "When lenders reply to your requests, you'll see it here."
+                  : "Messages, requests, approvals, returns and reviews will show up here."}
           </p>
         </div>
       ) : (
         <ul className="notification-list">
           {shown.map((n) => {
-            const { text, href } = describeNotification(n);
+            const { text } = describeNotification(n);
             const Icon = icons[n.kind] ?? Bell;
             const fresh = freshIds?.has(n.id) ?? !n.read;
             return (
               <li key={n.id}>
-                <a
+                <NotificationLink
+                  notification={n}
                   className={`notification${fresh ? " notification--unread" : ""}`}
-                  href={href}
                 >
-                  <span className={`notification__icon notification__icon--${n.role}`} aria-hidden="true">
+                  <span
+                    className={`notification__icon notification__icon--${n.role}`}
+                    aria-hidden="true"
+                  >
                     <Icon size={18} />
                   </span>
                   <span className="notification__body">
                     <span className="notification__text">{text}</span>
                     <span className="notification__meta">
                       <span className="tag notification__role">
-                        {n.role === "lender" ? "Lending" : "Borrowing"}
+                        {n.kind === "message_received"
+                          ? "Messages"
+                          : n.role === "lender"
+                            ? "Lending"
+                            : "Borrowing"}
                       </span>
                       <time dateTime={n.createdAt} title={formatDateTime(n.createdAt)}>
                         {formatRelative(n.createdAt)}
@@ -119,7 +133,7 @@ function NotificationList() {
                     </span>
                   </span>
                   {fresh && <span className="notification__dot" aria-label="New" />}
-                </a>
+                </NotificationLink>
               </li>
             );
           })}

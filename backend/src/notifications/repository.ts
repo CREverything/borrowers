@@ -6,6 +6,7 @@ import type { Pool, PoolClient } from "pg";
  * time zone.
  */
 export type NotificationKind =
+  | "message_received" // to the other conversation participant
   | "request_received" // to lender: someone asked to borrow
   | "request_cancelled" // to lender: borrower withdrew
   | "request_approved" // to borrower: approved, with return time

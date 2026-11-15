@@ -42,6 +42,10 @@ export async function runMigrations(client: PoolClient): Promise<MigrationReport
 
   await client.query(await readFile(constraintsPath, "utf8"));
 
+  await client.query(await readFile(new URL("../db/messaging.sql", import.meta.url), "utf8"));
+
+  await client.query(await readFile(new URL("../db/direct-messaging.sql", import.meta.url), "utf8"));
+
   return {
     demoProfilesAdded: demo.rowCount ?? 0,
     placeholderProfilesAdded: placeholders.rowCount ?? 0,

@@ -1,3 +1,4 @@
+import NotificationLink from "./NotificationLink";
 import { Bell, X } from "lucide-react";
 import { useEffect } from "react";
 import { useToasts } from "../hooks/useRequests";
@@ -27,18 +28,18 @@ export default function NotificationToasts({ hidden }: { hidden: boolean }) {
 }
 
 function Toast({ notification: n }: { notification: AppNotification }) {
-  const { text, href } = describeNotification(n);
+  const { text } = describeNotification(n);
   const Icon = notificationIcons[n.kind] ?? Bell;
   const dismiss = () => dismissToast(n.id);
 
   return (
     <div className="toast">
-      <a className="toast__body" href={href} onClick={dismiss}>
+      <NotificationLink notification={n} className="toast__body" onClick={dismiss}>
         <span className={`notification__icon notification__icon--${n.role}`} aria-hidden="true">
           <Icon size={18} />
         </span>
         <span className="toast__text">{text}</span>
-      </a>
+      </NotificationLink>
       <button className="toast__close" aria-label="Dismiss notification" onClick={dismiss}>
         <X size={16} aria-hidden="true" />
       </button>
