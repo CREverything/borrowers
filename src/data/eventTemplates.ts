@@ -9,6 +9,8 @@ export interface RequirementTemplate {
   keywords: string[]
   /** One unit covers this many guests. Omit for a fixed quantity of 1. */
   guestsPerUnit?: number
+  /** Nice to have rather than needed. */
+  optional?: boolean
 }
 
 export interface EventTemplate {
@@ -30,7 +32,7 @@ export const eventTemplates: EventTemplate[] = [
       { id: 'projector', name: 'Projector', reason: 'Puts the movie on a wall or screen everyone can see.', keywords: ['projector'] },
       { id: 'speakers', name: 'Speakers', reason: 'Laptop speakers will not carry across a room.', keywords: ['speaker'] },
       { id: 'extension', name: 'Extension cable', reason: 'Power for the projector and speakers in one spot.', keywords: ['extension'] },
-      { id: 'chairs', name: 'Chairs', reason: 'Extra seating beyond what the room has.', keywords: ['chair'], guestsPerUnit: 6 },
+      { id: 'chairs', name: 'Chairs', reason: 'Extra seating beyond what the room has.', keywords: ['chair'], guestsPerUnit: 6, optional: true },
     ],
   },
   {
@@ -51,8 +53,8 @@ export const eventTemplates: EventTemplate[] = [
     triggers: ['party', 'birthday', 'celebration', 'celebrate', 'dance', 'social', 'mixer'],
     requirements: [
       { id: 'speakers', name: 'Speakers', reason: 'Music loud enough for the whole room.', keywords: ['speaker'] },
-      { id: 'decorations', name: 'Decorations', reason: 'Banners and table covers to set the mood.', keywords: ['decoration'] },
-      { id: 'lights', name: 'Lights', reason: 'String lights for a warmer feel than overhead lighting.', keywords: ['lights'] },
+      { id: 'decorations', name: 'Decorations', reason: 'Banners and table covers to set the mood.', keywords: ['decoration'], optional: true },
+      { id: 'lights', name: 'Lights', reason: 'String lights for a warmer feel than overhead lighting.', keywords: ['lights'], optional: true },
       { id: 'tables', name: 'Tables', reason: 'Space for food and drinks.', keywords: ['table'], guestsPerUnit: 15 },
     ],
   },

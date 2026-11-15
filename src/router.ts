@@ -10,9 +10,24 @@ import { useEffect, useState } from "react";
 export type Route =
   | { name: "home"; section?: "browse" }
   | { name: "item"; id: number }
-  | { name: "plan"; query: string }
+  | {
+      name: "plan";
+      query: string;
+      /** A saved plan to open. */
+      planId: string | null;
+      /** The My plans list. */
+      mine: boolean;
+    }
   | { name: "switchies" }
-  | { name: "requests"; tab: "borrowing" | "lending"; section: LendingSection | null }
+  | {
+      name: "requests";
+      tab: "borrowing" | "lending";
+      section: LendingSection | null;
+      /** Borrowing sub-tab; null picks the most useful one. */
+      view: BorrowingView | null;
+      /** A request to scroll to and highlight. */
+      focus: string | null;
+    }
   | { name: "profile" }
   | { name: "user"; id: string }
   | { name: "lend" }
@@ -26,6 +41,10 @@ export type Route =
 /** Parts of the lending tab that links can jump to. */
 export type LendingSection = "waiting" | "on-loan";
 
+/** The borrowing tab's sub-tabs. */
+export type BorrowingView = "pending" | "upcoming" | "active" | "history";
+const BORROWING_VIEWS: BorrowingView[] = ["pending", "upcoming", "active", "history"];
+
 const HOME_HASH = "#/";
 
 /** Links are absolute, so they also work from /login and /signup. */
@@ -35,10 +54,14 @@ export const paths = {
   item: (id: number) => `/#/item/${id}`,
   plan: (query?: string) =>
     query ? `/#/plan?q=${encodeURIComponent(query)}` : "/#/plan",
+  savedPlan: (id: string) => `/#/plan/${encodeURIComponent(id)}`,
+  myPlans: "/#/plan?mine=1",
   switchies: "/#/switchies",
   requests: "/#/requests",
   lendingRequests: "/#/requests?tab=lending",
   lendingSection: (section: LendingSection) => `/#/requests?tab=lending&section=${section}`,
+  borrowing: (view: BorrowingView, focus?: string) =>
+    `/#/requests?view=${view}${focus ? `&focus=${encodeURIComponent(focus)}` : ""}`,
   profile: "/#/profile",
   user: (id: string) => `/#/user/${encodeURIComponent(id)}`,
   lend: "/#/lend",
@@ -108,21 +131,29 @@ export function parseHash(hash: string): Route {
       if (Number.isInteger(id)) return { name: "item", id };
       break;
     }
-    case "plan":
+    case "plan": {
+      const params = new URLSearchParams(search);
       return {
         name: "plan",
-        query: new URLSearchParams(search).get("q") ?? "",
+        query: params.get("q") ?? "",
+        planId: second && /^\d{1,18}$/.test(second) ? second : null,
+        mine: params.get("mine") === "1",
       };
+    }
     case "switchies":
       return { name: "switchies" };
     case "requests": {
       const params = new URLSearchParams(search);
       const tab = params.get("tab") === "lending" ? "lending" : "borrowing";
       const section = params.get("section");
+      const view = params.get("view") as BorrowingView | null;
+      const focus = params.get("focus");
       return {
         name: "requests",
         tab,
         section: tab === "lending" && (section === "waiting" || section === "on-loan") ? section : null,
+        view: tab === "borrowing" && view && BORROWING_VIEWS.includes(view) ? view : null,
+        focus: focus && /^\d{1,19}$/.test(focus) ? focus : null,
       };
     }
     case "profile":

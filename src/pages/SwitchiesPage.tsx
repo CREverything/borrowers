@@ -81,6 +81,11 @@ export default function SwitchiesPage() {
           <li>
             Prices are per day, and a borrow counts both the first and last day.
           </li>
+          <li>
+            Late returns cost 5 Switchies for every full hour past the return
+            deadline, counted until the lender confirms it's back and paid to
+            them then. While something is overdue you can't borrow anything new.
+          </li>
         </ul>
 
         <h2>

@@ -15,6 +15,7 @@ interface PlanRequirement {
   id: string;
   name: string;
   quantity: number;
+  importance: "essential" | "optional";
   reason: string;
   keywords: string[];
 }
@@ -23,6 +24,10 @@ export interface GeminiEventPlan {
   eventType: string;
   title: string;
   summary: string;
+  /** A short description of the event, for the plan. */
+  description: string;
+  /** YYYY-MM-DD only if the description names a date; never guessed. */
+  eventDate: string | null;
   guestCount: number;
   requirements: PlanRequirement[];
   source: "gemini";
@@ -44,6 +49,8 @@ const responseSchema = {
     eventType: { type: "STRING" },
     title: { type: "STRING" },
     summary: { type: "STRING" },
+    description: { type: "STRING" },
+    eventDate: { type: "STRING" },
     guestCount: { type: "INTEGER" },
     requirements: {
       type: "ARRAY",
@@ -52,17 +59,18 @@ const responseSchema = {
         properties: {
           name: { type: "STRING" },
           quantity: { type: "INTEGER" },
+          importance: { type: "STRING", enum: ["essential", "optional"] },
           reason: { type: "STRING" },
           keywords: { type: "ARRAY", items: { type: "STRING" } },
         },
-        required: ["name", "quantity", "reason", "keywords"],
+        required: ["name", "quantity", "importance", "reason", "keywords"],
       },
     },
   },
-  required: ["eventType", "title", "summary", "guestCount", "requirements"],
+  required: ["eventType", "title", "summary", "description", "eventDate", "guestCount", "requirements"],
 };
 
-function buildPrompt(description: string, catalog: CatalogEntry[]): string {
+function buildPrompt(description: string, catalog: CatalogEntry[], today: string): string {
   const listings = catalog.map((c) => `- ${c.title} (${c.category})`).join("\n");
   return [
     "You help college students plan events by borrowing things from other students on campus.",
@@ -76,14 +84,17 @@ function buildPrompt(description: string, catalog: CatalogEntry[]): string {
     "",
     "Return a plan with:",
     '- eventType: a short kebab-case label, e.g. "movie-night".',
-    '- title: a short title that includes the guest count, e.g. "Movie night for 20 people".',
+    '- title: a short event name, e.g. "Outdoor Movie Night".',
     "- summary: one friendly sentence under 25 words about what the event needs.",
+    "- description: two short sentences describing the event, for the organiser's plan.",
+    `- eventDate: the event's date as YYYY-MM-DD only if the description states or clearly implies one (today is ${today}). Otherwise an empty string. Never guess.`,
     "- guestCount: the number of people. Use 10 if it is not stated.",
-    "- requirements: 3 to 6 physical things worth borrowing. For each one:",
+    "- requirements: 3 to 8 physical things worth borrowing. For each one:",
     "  - name: short, e.g. \"Projector\" or \"Chairs\".",
     "  - quantity: how many are needed for the guest count.",
+    '  - importance: "essential" if the event can\'t really happen without it, otherwise "optional".',
     "  - reason: one short sentence on why it helps.",
-    '  - keywords: 1 or 2 lowercase nouns naming the item type, taken from the titles of matching listings above, e.g. "projector" or "chair". Never use describing words like "portable", "folding", "bluetooth" or "party", since they match unrelated listings. If nothing listed fits, use the plain noun for the item.',
+    '  - keywords: 1 to 4 lowercase singular nouns naming the item type and its common synonyms, preferring words from the titles of matching listings above, e.g. ["speaker"] for audio equipment or ["chair", "stool"] for seating. Never use describing words like "portable", "folding", "bluetooth" or "party", since they match unrelated listings.',
     "Do not suggest food, drinks, money or anything that cannot be lent and returned.",
   ].join("\n");
 }
@@ -115,11 +126,12 @@ function sanitizePlan(raw: unknown): GeminiEventPlan | null {
       const keywords = (Array.isArray(r.keywords) ? r.keywords : [])
         .map((k) => clampText(k, 30).toLowerCase())
         .filter(Boolean)
-        .slice(0, 3);
+        .slice(0, 4);
       return {
         id: `${slug(name)}-${index}`,
         name,
         quantity: clampInt(r.quantity, 1, 100, 1),
+        importance: r.importance === "optional" ? "optional" : "essential",
         reason: clampText(r.reason, 160),
         keywords: keywords.length ? keywords : [name.toLowerCase()],
       };
@@ -129,10 +141,19 @@ function sanitizePlan(raw: unknown): GeminiEventPlan | null {
   const title = clampText(data.title, 80);
   if (!title || requirements.length === 0) return null;
 
+  // Keep a date only if it's a real calendar date; otherwise the planner asks for one.
+  const rawDate = clampText(data.eventDate, 10);
+  const eventDate =
+    /^\d{4}-\d{2}-\d{2}$/.test(rawDate) && new Date(`${rawDate}T00:00:00Z`).toISOString().slice(0, 10) === rawDate
+      ? rawDate
+      : null;
+
   return {
     eventType: slug(clampText(data.eventType, 40)),
     title,
     summary: clampText(data.summary, 200),
+    description: clampText(data.description, 600),
+    eventDate,
     guestCount: clampInt(data.guestCount, 1, 1000, 10),
     requirements,
     source: "gemini",
@@ -144,6 +165,7 @@ async function callGemini(
   model: string,
   description: string,
   catalog: CatalogEntry[],
+  today: string,
 ): Promise<GeminiEventPlan | null> {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
   const response = await fetch(url, {
@@ -151,7 +173,7 @@ async function callGemini(
     headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     body: JSON.stringify({
-      contents: [{ role: "user", parts: [{ text: buildPrompt(description, catalog) }] }],
+      contents: [{ role: "user", parts: [{ text: buildPrompt(description, catalog, today) }] }],
       generationConfig: {
         responseMimeType: "application/json",
         responseSchema,
@@ -201,9 +223,14 @@ function readJsonBody(req: IncomingMessage): Promise<unknown> {
   });
 }
 
-function parseRequest(body: unknown): { description: string; catalog: CatalogEntry[] } | null {
+function parseRequest(body: unknown): { description: string; catalog: CatalogEntry[]; today: string } | null {
   if (!body || typeof body !== "object") return null;
-  const { description, catalog } = body as Record<string, unknown>;
+  const { description, catalog, today: clientToday } = body as Record<string, unknown>;
+  // The organiser's local date, so "this Friday" resolves in their time zone. Only a date is accepted.
+  const today =
+    typeof clientToday === "string" && /^\d{4}-\d{2}-\d{2}$/.test(clientToday)
+      ? clientToday
+      : new Date().toISOString().slice(0, 10);
   const text = clampText(description, MAX_DESCRIPTION_LENGTH);
   if (!text) return null;
   const entries = (Array.isArray(catalog) ? catalog : [])
@@ -213,7 +240,7 @@ function parseRequest(body: unknown): { description: string; catalog: CatalogEnt
       return { title: clampText(entry.title, 80), category: clampText(entry.category, 30) };
     })
     .filter((c) => c.title);
-  return { description: text, catalog: entries };
+  return { description: text, catalog: entries, today };
 }
 
 function sendJson(res: ServerResponse, status: number, body: unknown) {
@@ -237,7 +264,7 @@ export function createPlanEventHandler({ apiKey, model }: HandlerOptions) {
     if (!input) return sendJson(res, 400, { error: "Describe your event first." });
 
     try {
-      const plan = await callGemini(apiKey, model, input.description, input.catalog);
+      const plan = await callGemini(apiKey, model, input.description, input.catalog, input.today);
       if (!plan) return sendJson(res, 502, { error: "Could not build a plan." });
       return sendJson(res, 200, plan);
     } catch (error) {

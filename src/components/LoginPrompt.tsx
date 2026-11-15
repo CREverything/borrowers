@@ -32,7 +32,6 @@ const actionText: Record<GatedAction, string> = {
 /** Features that need an account but aren't built yet. */
 const comingSoon: Partial<Record<GatedAction, string>> = {
   waitlist: "Waitlists open soon",
-  favourite: "Favourites are coming soon",
   trade: "Trades are coming soon",
 };
 

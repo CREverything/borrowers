@@ -13,6 +13,15 @@ import {
 } from "../requests/repository.ts";
 import { listNotifications, markRead } from "../notifications/repository.ts";
 import {
+  decideExtension,
+  initiateReturn,
+  markHandedOver,
+  parseExtension,
+  reconcileDeadlineReminders,
+  requestExtension,
+} from "../requests/loans.ts";
+import { listLoansNear } from "../requests/repository.ts";
+import {
   createReview,
   listReviews,
   markReturned,
@@ -82,6 +91,50 @@ export function createRequestsRouter(protect: RequestHandler[]) {
     );
   });
 
+  /** POST /api/requests/:id/handed-over: either side records the item changed hands. */
+  router.post("/requests/:id/handed-over", ...guard, async (req, res) => {
+    const id = parseId(req.params.id);
+    if (id === null) return sendError(res, new RequestError(404, "Request not found."));
+    await respond(res, 200, () => markHandedOver(getPool(), authenticatedUserId(res), id));
+  });
+
+  /** POST /api/requests/:id/return: borrower says it's back; the lender then confirms. */
+  router.post("/requests/:id/return", ...guard, async (req, res) => {
+    const id = parseId(req.params.id);
+    if (id === null) return sendError(res, new RequestError(404, "Request not found."));
+    await respond(res, 200, () => initiateReturn(getPool(), authenticatedUserId(res), id));
+  });
+
+  /** POST /api/requests/:id/extensions: borrower asks for a later return time. */
+  router.post("/requests/:id/extensions", ...guard, async (req, res) => {
+    const id = parseId(req.params.id);
+    if (id === null) return sendError(res, new RequestError(404, "Request not found."));
+    await respond(res, 201, () =>
+      requestExtension(getPool(), authenticatedUserId(res), id, parseExtension(req.body)),
+    );
+  });
+
+  /** POST /api/extensions/:id/approve and /decline: the lender responds. */
+  for (const decision of ["approve", "decline"] as const) {
+    router.post(`/extensions/:id/${decision}`, ...guard, async (req, res) => {
+      const id = parseId(req.params.id);
+      if (id === null) return sendError(res, new RequestError(404, "Extension request not found."));
+      await respond(res, 200, () => decideExtension(getPool(), authenticatedUserId(res), id, decision));
+    });
+  }
+
+  /** GET /api/deadlines: my borrowed items due within 72 hours or overdue, soonest first. */
+  router.get("/deadlines", ...guard, async (_req, res) => {
+    const userId = authenticatedUserId(res);
+    const loans = await listLoansNear(getPool(), userId, 72 * 3_600_000);
+    res.json(
+      loans
+        .filter((l) => l.borrowerId === userId)
+        .sort((a, b) => Date.parse(a.returnDueAt!) - Date.parse(b.returnDueAt!))
+        .map((l) => ({ requestId: l.id, itemId: l.itemId, itemTitle: l.itemTitle, returnDueAt: l.returnDueAt })),
+    );
+  });
+
   /** POST /api/requests/:id/rate-borrower: lender scores the borrower after the return. */
   router.post("/requests/:id/rate-borrower", ...guard, async (req, res) => {
     const id = parseId(req.params.id);
@@ -110,7 +163,10 @@ export function createRequestsRouter(protect: RequestHandler[]) {
 
   /** GET /api/notifications: my latest notifications and unread count. */
   router.get("/notifications", ...guard, async (_req, res) => {
-    res.json(await listNotifications(getPool(), authenticatedUserId(res)));
+    const userId = authenticatedUserId(res);
+    // No scheduler: deadline reminders are caught up whenever notifications are read.
+    await reconcileDeadlineReminders(getPool(), userId);
+    res.json(await listNotifications(getPool(), userId));
   });
 
   /** POST /api/notifications/read: mark some ({ ids }) or all ({}) as read. */

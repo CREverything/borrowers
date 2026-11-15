@@ -15,6 +15,18 @@ interface RangeCalendarProps {
   booked: DateRange[];
   /** Longest range the lender allows, in days. */
   maxDays: number;
+  /** Pick one day instead of a range (start and end are the same day). */
+  single?: boolean;
+  /**
+   * Days when some (not all) of several items are booked. Shown with a
+   * marker but still selectable, so the borrower can decide whether to go
+   * ahead with just the free items.
+   */
+  partial?: DateRange[];
+  /** Legend text for `partial` days. */
+  partialLabel?: string;
+  /** Accessible name for the day grid, e.g. "Event date". */
+  label?: string;
 }
 
 const WEEKDAYS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
@@ -42,6 +54,10 @@ export default function RangeCalendar({
   max,
   booked,
   maxDays,
+  single = false,
+  partial = [],
+  partialLabel = "Some items booked",
+  label = "Choose dates",
 }: RangeCalendarProps) {
   const [month, setMonth] = useState(() => monthStart(start || min));
   const [focused, setFocused] = useState<ISODate>(start || min);
@@ -74,13 +90,14 @@ export default function RangeCalendar({
 
   const choose = (day: ISODate) => {
     if (!selectable(day)) return;
+    if (single) return onChange(day, day);
     if (!start || end) return onChange(day, "");
     if (day < start || spansBooking(start, day)) return onChange(day, "");
     onChange(start, day);
   };
 
   // While choosing the end, preview the range under the pointer or focus.
-  const previewEnd = start && !end ? hovered : null;
+  const previewEnd = !single && start && !end ? hovered : null;
   const rangeEnd = end || (previewEnd && previewEnd >= start && !spansBooking(start, previewEnd) ? previewEnd : "");
   const tooLong = !!start && !!rangeEnd && daysInclusive(start, rangeEnd) > maxDays;
 
@@ -141,7 +158,7 @@ export default function RangeCalendar({
       <div
         className="calendar__grid"
         role="group"
-        aria-label={`Choose dates, ${monthLabel(month)}`}
+        aria-label={`${label}, ${monthLabel(month)}`}
         ref={gridRef}
         onKeyDown={onKey}
         onMouseLeave={() => setHovered(null)}
@@ -158,6 +175,7 @@ export default function RangeCalendar({
             "calendar__day",
             outside && "calendar__day--outside",
             bookedDay && "calendar__day--booked",
+            !bookedDay && partial.some((r) => r.start <= day && day <= r.end) && "calendar__day--partial",
             day === min && "calendar__day--today",
             (isStart || isEnd) && "calendar__day--selected",
             isStart && rangeEnd && rangeEnd !== start && "calendar__day--range-start",
@@ -179,7 +197,11 @@ export default function RangeCalendar({
               aria-disabled={disabled}
               tabIndex={tabbable ? 0 : -1}
               aria-pressed={isStart || isEnd}
-              aria-label={`${dayLabel(day)}${bookedDay ? ", already booked" : ""}${isStart ? ", start date" : ""}${isEnd ? ", end date" : ""}`}
+              aria-label={`${dayLabel(day)}${bookedDay ? ", already booked" : ""}${
+                !bookedDay && partial.some((r) => r.start <= day && day <= r.end) ? `, ${partialLabel.toLowerCase()}` : ""
+              }${
+                single ? (isStart ? ", selected" : "") : `${isStart ? ", start date" : ""}${isEnd ? ", end date" : ""}`
+              }`}
               onClick={() => choose(day)}
               onMouseEnter={() => setHovered(day)}
               onFocus={() => {
@@ -193,14 +215,24 @@ export default function RangeCalendar({
         })}
       </div>
 
-      <div className="calendar__legend" aria-hidden="true">
-        <span>
-          <i className="calendar__swatch calendar__swatch--selected" /> Your dates
-        </span>
-        <span>
-          <i className="calendar__swatch calendar__swatch--booked" /> Booked
-        </span>
-      </div>
+      {/* The legend only matters when there's a range or booked days to explain. */}
+      {(!single || booked.length > 0 || partial.length > 0) && (
+        <div className="calendar__legend" aria-hidden="true">
+          <span>
+            <i className="calendar__swatch calendar__swatch--selected" /> Your dates
+          </span>
+          {booked.length > 0 && (
+            <span>
+              <i className="calendar__swatch calendar__swatch--booked" /> Booked
+            </span>
+          )}
+          {partial.length > 0 && (
+            <span>
+              <i className="calendar__swatch calendar__swatch--partial" /> {partialLabel}
+            </span>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -3,7 +3,6 @@ import {
   CalendarDays,
   CircleCheckBig,
   Coins,
-  Heart,
   Inbox,
   MapPin,
   Package,
@@ -14,17 +13,21 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useAuthState } from "../auth/AuthContext";
 import { clearPendingIntent, peekPendingIntent } from "../auth/pendingAction";
 import AvailabilityBadge from "../components/AvailabilityBadge";
+import FavouriteButton from "../components/FavouriteButton";
+import ItemCard from "../components/ItemCard";
+import { relatedItems } from "../lib/planning";
 import ItemIllustration from "../components/ItemIllustration";
 import ItemReviews from "../components/ItemReviews";
 import ItemsStatus from "../components/ItemsStatus";
 import RangeCalendar from "../components/RangeCalendar";
-import { useGatedPlaceholder, useRequireAuth } from "../components/LoginPrompt";
+import { useRequireAuth } from "../components/LoginPrompt";
 import RatingInline from "../components/RatingInline";
 import { getCategoryLabel } from "../data/categories";
 import { lenderNameOf } from "../data/users";
 import { usePublicProfile } from "../hooks/usePublicProfile";
 import { Avatar } from "../components/UserMenu";
 import { useItems } from "../hooks/useItems";
+import { useOverdueLoans } from "../hooks/useOverdue";
 import { useBalance, useRequests } from "../hooks/useRequests";
 import { getAvailability, upcomingBookings } from "../lib/availability";
 import { quoteBorrow } from "../lib/borrowing";
@@ -68,7 +71,6 @@ export default function ItemDetailPage({ id }: { id: number }) {
 }
 
 function ItemDetail({ item }: { item: Item }) {
-  const gatedPlaceholder = useGatedPlaceholder();
   const requireAuth = useRequireAuth();
   const { user, getToken } = useAuthState();
   const balance = useBalance();
@@ -102,6 +104,7 @@ function ItemDetail({ item }: { item: Item }) {
   const quote = quoteBorrow(item, startDate, endDate, today);
   const showError =
     !quote.ok && (attempted || (startDate !== "" && endDate !== ""));
+  const overdue = useOverdueLoans();
   const cantAfford =
     quote.ok && balance !== null && quote.totalSwitchies > balance;
 
@@ -109,7 +112,7 @@ function ItemDetail({ item }: { item: Item }) {
     e.preventDefault();
     setAttempted(true);
     setServerError(null);
-    if (!quote.ok || cantAfford) return;
+    if (!quote.ok || cantAfford || overdue.length > 0) return;
     const allowed = requireAuth("request", {
       restore: {
         intent: { kind: "borrow", itemId: item.id, startDate, endDate },
@@ -151,15 +154,7 @@ function ItemDetail({ item }: { item: Item }) {
 
       <div className="detail">
         <div className="detail__main">
-          <ItemIllustration item={item} size={140} className="detail__media">
-            <button
-              className="card__save"
-              aria-label="Favourite item"
-              onClick={() => gatedPlaceholder("favourite")}
-            >
-              <Heart size={18} />
-            </button>
-          </ItemIllustration>
+          <PhotoGallery item={item} />
 
           <div className="detail__info">
             <div className="tags">
@@ -218,6 +213,8 @@ function ItemDetail({ item }: { item: Item }) {
               </div>
             </div>
             <ItemReviews item={item} />
+            {/* In the main column, so it lines up with the panels and reviews above. */}
+            <RelatedItems item={item} />
           </div>
         </div>
 
@@ -327,6 +324,10 @@ function ItemDetail({ item }: { item: Item }) {
                   setServerError(null);
                 }}
               />
+              <p className="muted small booking__calendar-note">
+                An item stays booked until its lender confirms it's been returned, so it can't be
+                borrowed again before then, even on the same day.
+              </p>
 
               {quote.ok ? (
                 <dl className="quote">
@@ -353,6 +354,15 @@ function ItemDetail({ item }: { item: Item }) {
                     : "Choose the first day you need it."}
                 </p>
               )}
+              {overdue.length > 0 && (
+                <p className="form-error" role="alert">
+                  {overdue[0].itemTitle || "An item you borrowed"} is overdue. Return it before borrowing
+                  anything new.{" "}
+                  <a className="link" href={paths.borrowing("active", overdue[0].id)}>
+                    See it
+                  </a>
+                </p>
+              )}
               {cantAfford && (
                 <p className="form-error" role="alert">
                   You have {balance} Switchies, so this is out of reach for now.
@@ -367,7 +377,7 @@ function ItemDetail({ item }: { item: Item }) {
               <button
                 type="submit"
                 className="btn btn--primary btn--block"
-                disabled={sending}
+                disabled={sending || overdue.length > 0}
               >
                 {sending ? "Sending..." : "Request to Borrow"}
               </button>
@@ -379,6 +389,55 @@ function ItemDetail({ item }: { item: Item }) {
           )}
         </aside>
       </div>
+    </div>
+  );
+}
+
+/** Three related listings, as the same cards as the marketplace. */
+function RelatedItems({ item }: { item: Item }) {
+  const { items } = useItems();
+  const related = relatedItems(item, items, 3);
+  if (related.length === 0) return null;
+  return (
+    <section className="related" aria-labelledby="related-title">
+      <h2 id="related-title">Related items</h2>
+      <div className="related__grid">
+        {related.map((other) => (
+          <ItemCard key={other.id} item={other} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/** The cover photo (or icon), with thumbnails to switch between photos. */
+function PhotoGallery({ item }: { item: Item }) {
+  const photos = item.images ?? [];
+  const [index, setIndex] = useState(0);
+  const current = photos[Math.min(index, photos.length - 1)];
+
+  return (
+    <div className="gallery">
+      <ItemIllustration item={item} size={140} className="detail__media" photoUrl={current?.url} fit="contain">
+        <FavouriteButton item={item} />
+      </ItemIllustration>
+      {photos.length > 1 && (
+        <ul className="gallery__thumbs" aria-label="Photos">
+          {photos.map((photo, i) => (
+            <li key={photo.id}>
+              <button
+                type="button"
+                className={`gallery__thumb${i === index ? " gallery__thumb--active" : ""}`}
+                aria-label={`Show photo ${i + 1} of ${photos.length}`}
+                aria-pressed={i === index}
+                onClick={() => setIndex(i)}
+              >
+                <img src={photo.url} alt="" loading="lazy" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

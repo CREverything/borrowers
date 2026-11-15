@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "api": "npm --prefix backend run dev"
+    "api": "npm --prefix backend run dev",
+    "test": "node --test --disable-warning=ExperimentalWarning src/lib/*.test.ts"
   },
   "dependencies": {
     "@clerk/react": "6.18.1",

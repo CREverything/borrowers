@@ -7,6 +7,7 @@ import {
   RequestError,
   type BorrowRequest,
 } from "./repository.ts";
+import { cancelOpenExtension, lateFeeFor } from "./loans.ts";
 
 /**
  * After approval: return times, returns, the lender's score for the
@@ -86,23 +87,63 @@ export async function setReturnTime(pool: Pool, lenderId: string, id: number, re
 }
 
 /**
- * Lender confirms the item is back, early or on time. They can score the
+ * Lender confirms the item is back, early or on time, whether or not the
+ * borrower marked it returned first. Only the lender can do this, and only
+ * once (the row is locked and must still be approved). They can score the
  * borrower now or later. Returned items no longer block the calendar.
  */
 export async function markReturned(pool: Pool, lenderId: string, id: number, score: Score | null) {
   await inTransaction(pool, async (client) => {
     await lockForLender(client, lenderId, id, ["approved"]);
+    await cancelOpenExtension(client, id);
+
+    // Late fee: an item is overdue until the lender confirms it's back, so the
+    // fee counts up to now (this confirmation), and is paid to the lender.
+    const loan = (
+      await client.query<{
+        borrower_id: string;
+        return_due_at: Date | null;
+        return_requested_at: Date | null;
+        now: Date;
+      }>(
+        "select borrower_id, return_due_at, return_requested_at, now() as now from borrow_requests where id = $1",
+        [id],
+      )
+    ).rows[0];
+    const { fee } = lateFeeFor(loan.return_due_at, loan.now);
+    let charged = 0;
+    if (fee > 0) {
+      // Same lock order as approvals; balances can't go below zero, so the fee is capped.
+      const balances = await client.query<{ clerk_id: string; switchies_balance: number }>(
+        "select clerk_id, switchies_balance from users where clerk_id = any($1) order by clerk_id for update",
+        [[loan.borrower_id, lenderId]],
+      );
+      const have = balances.rows.find((u) => u.clerk_id === loan.borrower_id)?.switchies_balance ?? 0;
+      charged = Math.min(fee, have);
+      if (charged > 0) {
+        await client.query("update users set switchies_balance = switchies_balance - $2 where clerk_id = $1", [
+          loan.borrower_id,
+          charged,
+        ]);
+        await client.query("update users set switchies_balance = switchies_balance + $2 where clerk_id = $1", [
+          lenderId,
+          charged,
+        ]);
+      }
+    }
+
     await client.query(
       `update borrow_requests
        set status = 'returned', returned_at = now(), updated_at = now(),
-           borrower_rating = $2, borrower_rating_comment = $3
+           borrower_rating = $2, borrower_rating_comment = $3, late_fee_switchies = $4
        where id = $1`,
-      [id, score?.rating ?? null, score?.comment || null],
+      [id, score?.rating ?? null, score?.comment || null, charged],
     );
     const request = await getRequest(client, String(id));
     await notifyAbout(client, request, "item_returned", "borrower", {
       returnedAt: request.returnedAt,
       rating: score?.rating ?? null,
+      lateFee: charged,
     });
   });
   return getRequest(pool, String(id));

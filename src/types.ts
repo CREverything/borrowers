@@ -77,13 +77,39 @@ export interface Item {
   /** Extra search terms, also used to match event planning suggestions. */
   keywords: string[]
   availability: Availability
-  /** Hosted photo URL. Uploads aren't available yet, so this is always null for now. */
+  /** The cover photo's URL (the first uploaded photo), or null. */
   imageUrl?: string | null
+  /** Every uploaded photo, cover first. */
+  images?: { id: string; url: string }[]
   status?: ItemStatus
   createdAt?: string
 }
 
 export type RequestStatus = 'pending' | 'approved' | 'declined' | 'cancelled' | 'returned'
+
+/**
+ * Where a loan is, derived by the API. `approved` splits into upcoming (not
+ * handed over yet), active (the borrower has it) and return_pending (the
+ * borrower says it's back; the lender still has to confirm).
+ */
+export type RequestStage =
+  | 'pending'
+  | 'upcoming'
+  | 'active'
+  | 'return_pending'
+  | 'returned'
+  | 'declined'
+  | 'cancelled'
+
+/** A borrower's open request for a later return time. */
+export interface PendingExtension {
+  id: string
+  requestedDueAt: string
+  newEndDate: ISODate
+  extraDays: number
+  extraSwitchies: number
+  createdAt: string
+}
 
 export interface BorrowRequest {
   id: string
@@ -97,15 +123,27 @@ export interface BorrowRequest {
   startDate: ISODate
   endDate: ISODate
   days: number
+  /** Price per day, copied in when the request was made. */
+  switchiesPerDay?: number
   totalSwitchies: number
   status: RequestStatus
+  stage: RequestStage
   createdAt: string
+  /** When the item changed hands. */
+  handedOverAt?: string | null
+  /** When the borrower said they handed it back. */
+  returnRequestedAt?: string | null
+  pendingExtension?: PendingExtension | null
   /** When the lender approved or declined. */
   decidedAt?: string | null
   /** When the lender wants it back (ISO time). Set on approval. */
   returnDueAt?: string | null
   /** When the lender confirmed it came back. */
   returnedAt?: string | null
+  /** Late fee charged when it came back, in Switchies. */
+  lateFeeSwitchies?: number | null
+  /** The borrower's preferred return time (e.g. from an event plan); a default for the lender. */
+  requestedReturnAt?: string | null
   /** The lender's 1-5 score for the borrower on this request. */
   borrowerRating?: number | null
   borrowerRatingComment?: string | null
@@ -126,6 +164,15 @@ export type NotificationKind =
   | 'item_returned'
   | 'borrower_rated'
   | 'review_received'
+  | 'handed_over'
+  | 'due_in_72h'
+  | 'due_in_24h'
+  | 'overdue'
+  | 'loan_overdue'
+  | 'return_initiated'
+  | 'extension_requested'
+  | 'extension_approved'
+  | 'extension_declined'
 
 /** Stores facts; the UI phrases them in the reader's time zone. */
 export interface AppNotification {
@@ -143,6 +190,9 @@ export interface AppNotification {
     returnedAt?: string | null
     rating?: number | null
     eventTitle?: string
+    requestedDueAt?: string
+    extraSwitchies?: number
+    lateFee?: number
   }
   requestId: string | null
   itemId: number | null
@@ -163,6 +213,8 @@ export interface EventItemRequirement {
   id: string
   name: string
   quantity: number
+  /** Whether the event can happen without it. Older responses omit it (treated as essential). */
+  importance?: 'essential' | 'optional'
   reason: string
   /** Terms used to find matching marketplace listings. */
   keywords: string[]
@@ -172,6 +224,10 @@ export interface EventPlan {
   eventType: string
   title: string
   summary: string
+  /** A short description of the event. */
+  description?: string
+  /** YYYY-MM-DD, only when the description named a date. Never guessed. */
+  eventDate?: string | null
   guestCount: number
   requirements: EventItemRequirement[]
   /** Where the plan came from. Only `mock` exists today. */

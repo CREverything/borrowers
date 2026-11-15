@@ -13,7 +13,16 @@ export type NotificationKind =
   | "return_time_changed" // to borrower
   | "item_returned" // to borrower: lender confirmed it's back; time to review
   | "borrower_rated" // to borrower: lender scored them
-  | "review_received"; // to lender: borrower reviewed their listing
+  | "review_received" // to lender: borrower reviewed their listing
+  | "handed_over" // to the other side: the item changed hands, the loan is active
+  | "due_in_72h" // to borrower: deadline within 3 days
+  | "due_in_24h" // to borrower: deadline within a day
+  | "overdue" // to borrower: deadline passed
+  | "loan_overdue" // to lender: their item is late back
+  | "return_initiated" // to lender: borrower says it's back; please confirm
+  | "extension_requested" // to lender
+  | "extension_approved" // to borrower
+  | "extension_declined"; // to borrower
 
 export interface Notification {
   id: string;

@@ -1,4 +1,4 @@
-import { Coins, ImagePlus, Map as MapIcon, MapPin, Type } from "lucide-react";
+import { Coins, Map as MapIcon, MapPin, Type } from "lucide-react";
 import {
   useState,
   type FormEvent,
@@ -16,6 +16,7 @@ import type { CategoryId, Item, ItemCondition } from "../types";
 import CampusMap from "./CampusMap";
 import ItemCard from "./ItemCard";
 import { iconChoices } from "./ItemIllustration";
+import PhotoPicker, { photoChanges, type PhotoChanges, type PhotoEntry } from "./PhotoPicker";
 
 /** Same limits as the server's validation (backend/src/items/validation.ts). */
 export const LIMITS = {
@@ -198,8 +199,10 @@ export function validateDraft(draft: ListingDraft): {
 interface ListingFormProps {
   initial: ListingDraft;
   mode: "create" | "edit";
-  /** Called with validated fields. Throw a ListingError to show server errors. */
-  onSubmit: (fields: ListingFields, status: ListingStatus) => Promise<void>;
+  /** Called with validated fields and photo changes. Throw a ListingError to show server errors. */
+  onSubmit: (fields: ListingFields, status: ListingStatus, photos: PhotoChanges) => Promise<void>;
+  /** The listing's current photos, when editing. */
+  initialPhotos?: { id: string; url: string }[];
   onCancel: () => void;
   /** Errors from the server, keyed by field. */
   serverErrors?: FieldErrors;
@@ -218,8 +221,12 @@ export default function ListingForm({
   formError,
   lenderName,
   previewId = 0,
+  initialPhotos = [],
 }: ListingFormProps) {
   const [draft, setDraft] = useState(initial);
+  const [photos, setPhotos] = useState<PhotoEntry[]>(() =>
+    initialPhotos.map((p) => ({ key: `existing-${p.id}`, kind: "existing" as const, id: p.id, url: p.url })),
+  );
   // Start on the map unless an existing location was typed by hand.
   const [locationMode, setLocationMode] = useState<"map" | "text">(() =>
     !initial.location.trim() || findCampusPlace(initial.location) ? "map" : "text",
@@ -249,7 +256,7 @@ export default function ListingForm({
     }
     setSaving(true);
     try {
-      await onSubmit(fields, draft.status);
+      await onSubmit(fields, draft.status, photoChanges(initialPhotos, photos));
     } finally {
       setSaving(false);
     }
@@ -266,6 +273,7 @@ export default function ListingForm({
     location: draft.location.trim() || "Pickup spot",
     switchiesPerDay: Number(draft.switchiesPerDay) || 0,
     iconKey: draft.iconKey,
+    imageUrl: photos[0]?.url ?? null,
     keywords: [],
     availability: {
       bookedRanges: [],
@@ -503,12 +511,11 @@ export default function ListingForm({
           </Field>
         </div>
 
-        <ChoiceGroup id="iconKey" label="Picture" bare>
-          <p className="photo-note">
-            <ImagePlus size={18} aria-hidden="true" />
-            Photo uploads are coming soon. For now, pick the icon that fits your
-            item best.
-          </p>
+        <ChoiceGroup id="photos" label="Photos" bare>
+          <PhotoPicker photos={photos} onChange={setPhotos} />
+        </ChoiceGroup>
+
+        <ChoiceGroup id="iconKey" label={photos.length ? "Icon (used in small spots)" : "Icon (shown until you add a photo)"} bare>
           <div className="icon-picker">
             {iconChoices.map(({ key, label, icon: Icon }) => (
               <label key={key} className="icon-picker__option" title={label}>

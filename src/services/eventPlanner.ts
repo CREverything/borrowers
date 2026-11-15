@@ -1,5 +1,6 @@
 import { getCategoryLabel } from "../data/categories";
 import { eventTemplates, fallbackTemplate } from "../data/eventTemplates";
+import { todayISO } from "../lib/dates";
 import { getItemsState, loadItems } from "./itemsStore";
 import type { EventItemRequirement, EventPlan } from "../types";
 
@@ -35,11 +36,15 @@ export const templateEventPlanner: EventPlanner = {
       eventType: template.type,
       title: `${template.title} for ${guestCount} people`,
       summary: template.summary,
+      description: template.summary,
+      // Templates can't read dates out of text, so the planner always asks.
+      eventDate: null,
       guestCount,
       source: "mock",
       requirements: template.requirements.map((r) => ({
         id: r.id,
         name: r.name,
+        importance: r.optional ? "optional" : "essential",
         reason: r.reason,
         keywords: r.keywords,
         quantity: r.guestsPerUnit ? Math.max(1, Math.ceil(guestCount / r.guestsPerUnit)) : 1,
@@ -89,7 +94,8 @@ export const geminiEventPlanner: EventPlanner = {
     const response = await fetch(PLAN_ENDPOINT, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ description, catalog }),
+      // The organiser's local date lets Gemini read "this Friday" correctly.
+      body: JSON.stringify({ description, catalog, today: todayISO() }),
     });
     if (!response.ok) throw new Error(`Planner returned ${response.status}`);
 

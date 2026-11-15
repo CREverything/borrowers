@@ -1,10 +1,15 @@
 import {
+  AlarmClock,
   CalendarClock,
+  CalendarPlus,
   CircleCheckBig,
   CircleX,
+  Handshake,
+  Hourglass,
   Inbox,
   PackageCheck,
   Star,
+  TriangleAlert,
   Undo2,
   type LucideIcon,
 } from "lucide-react";
@@ -22,6 +27,15 @@ export const notificationIcons: Record<NotificationKind, LucideIcon> = {
   item_returned: PackageCheck,
   borrower_rated: Star,
   review_received: Star,
+  handed_over: Handshake,
+  due_in_72h: CalendarClock,
+  due_in_24h: Hourglass,
+  overdue: TriangleAlert,
+  loan_overdue: AlarmClock,
+  return_initiated: PackageCheck,
+  extension_requested: CalendarPlus,
+  extension_approved: CircleCheckBig,
+  extension_declined: CircleX,
 };
 
 /**
@@ -38,6 +52,9 @@ export function describeNotification(n: AppNotification): { text: string; href: 
   const stars = d.rating ? `${d.rating} ${d.rating === 1 ? "star" : "stars"}` : "";
   const lending = paths.lendingRequests;
   const borrowing = paths.requests;
+  const thisLoan = n.requestId ? paths.borrowing("active", n.requestId) : paths.borrowing("active");
+  const wantedBy = d.requestedDueAt ? formatDateTime(d.requestedDueAt) : "";
+  const extra = d.extraSwitchies ? ` (${d.extraSwitchies} more Switchies)` : "";
 
   switch (n.kind) {
     case "request_received":
@@ -58,7 +75,7 @@ export function describeNotification(n: AppNotification): { text: string; href: 
       return { text: `${lender} changed the return time for ${item}${due ? ` to ${due}` : ""}.`, href: borrowing };
     case "item_returned":
       return {
-        text: `${lender} marked ${item} as returned.${stars ? ` They gave you ${stars}.` : ""} Leave a review!`,
+        text: `${lender} marked ${item} as returned.${d.lateFee ? ` It was late, so ${d.lateFee} Switchies went to them as a late fee.` : ""}${stars ? ` They gave you ${stars}.` : ""} Leave a review!`,
         href: borrowing,
       };
     case "borrower_rated":
@@ -67,6 +84,44 @@ export function describeNotification(n: AppNotification): { text: string; href: 
       return {
         text: `${borrower} left a ${d.rating ?? ""}-star review on ${item}.`,
         href: n.itemId ? paths.item(n.itemId) : lending,
+      };
+    case "handed_over":
+      return n.role === "lender"
+        ? { text: `${borrower} has picked up ${item}.`, href: paths.lendingSection("on-loan") }
+        : {
+            text: `You've got ${item}.${due ? ` Please return it by ${due}.` : ""}`,
+            href: thisLoan,
+          };
+    case "due_in_72h":
+      return { text: `${item} is due back ${due ? `by ${due}` : "within 3 days"}.`, href: thisLoan };
+    case "due_in_24h":
+      return { text: `${item} is due back within a day${due ? `, by ${due}` : ""}.`, href: thisLoan };
+    case "overdue":
+      return {
+        text: `${item} is overdue${due ? ` (it was due ${due})` : ""}. Please return it or ask for more time.`,
+        href: thisLoan,
+      };
+    case "loan_overdue":
+      return { text: `${borrower} hasn't returned ${item} yet${due ? `; it was due ${due}` : ""}.`, href: paths.lendingSection("on-loan") };
+    case "return_initiated":
+      return {
+        text: `${borrower} says they've returned ${item}. Confirm once you have it.`,
+        href: paths.lendingSection("waiting"),
+      };
+    case "extension_requested":
+      return {
+        text: `${borrower} asked to keep ${item}${wantedBy ? ` until ${wantedBy}` : " longer"}${extra}.`,
+        href: paths.lendingSection("waiting"),
+      };
+    case "extension_approved":
+      return {
+        text: `${lender} gave you more time with ${item}.${due ? ` It's now due ${due}.` : ""}`,
+        href: thisLoan,
+      };
+    case "extension_declined":
+      return {
+        text: `${lender} couldn't extend ${item}.${due ? ` It's still due ${due}.` : ""}`,
+        href: thisLoan,
       };
     default:
       return { text: "You have an update.", href: borrowing };

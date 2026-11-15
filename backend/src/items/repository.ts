@@ -18,6 +18,7 @@ interface ItemRow {
   rating_count: number;
   icon_key: string;
   image_url: string | null;
+  image_ids: string[];
   keywords: string[];
   max_borrow_days: number;
   booked_ranges: DateRange[];
@@ -34,6 +35,7 @@ const SELECT_ITEM = `
   select i.id, i.title, i.description, i.category, i.condition, i.lender_id,
          u.display_name as lender_name, i.location, i.switchies_per_day,
          i.rating_average, i.rating_count, i.icon_key, i.image_url, i.keywords,
+         array(select m.id::text from item_images m where m.item_id = i.id order by m.position, m.id) as image_ids,
          i.max_borrow_days,
          i.booked_ranges || coalesce((
            select jsonb_agg(jsonb_build_object('start', r.start_date, 'end', r.end_date)
@@ -58,7 +60,9 @@ export function toItem(row: ItemRow): Item {
     location: row.location,
     switchiesPerDay: row.switchies_per_day,
     iconKey: row.icon_key,
-    imageUrl: row.image_url,
+    // Uploaded photos, cover first. The old image_url column is only a fallback.
+    images: row.image_ids.map((imageId) => ({ id: imageId, url: `/api/items/${row.id}/images/${imageId}` })),
+    imageUrl: row.image_ids.length ? `/api/items/${row.id}/images/${row.image_ids[0]}` : row.image_url,
     keywords: row.keywords,
     status: row.status,
     createdAt: row.created_at.toISOString(),
@@ -80,6 +84,16 @@ export async function listActiveItems(pool: Pool): Promise<Item[]> {
   return result.rows.map(toItem);
 }
 
+/** A user's favourites that are still in the marketplace, most recently saved first. */
+export async function listFavouriteItems(pool: Pool, userId: string): Promise<Item[]> {
+  const result = await pool.query<ItemRow>(
+    `${SELECT_ITEM} join favourites f on f.item_id = i.id
+     where f.user_id = $1 and i.status = 'active' order by f.created_at desc`,
+    [userId],
+  );
+  return result.rows.map(toItem);
+}
+
 /** Someone's active listings, for their public profile. */
 export async function listActiveItemsByLender(pool: Pool, lenderId: string): Promise<Item[]> {
   const result = await pool.query<ItemRow>(
@@ -98,7 +112,7 @@ export async function listItemsByLender(pool: Pool, lenderId: string): Promise<I
   return result.rows.map(toItem);
 }
 
-async function getItemById(pool: Pool, id: number): Promise<Item | null> {
+export async function getItemById(pool: Pool, id: number): Promise<Item | null> {
   const result = await pool.query<ItemRow>(`${SELECT_ITEM} where i.id = $1`, [id]);
   return result.rows[0] ? toItem(result.rows[0]) : null;
 }

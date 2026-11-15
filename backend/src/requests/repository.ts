@@ -5,6 +5,30 @@ import { daysInclusive, type BorrowRequestInput, type EventRequestInput } from "
 
 export type RequestStatus = "pending" | "approved" | "declined" | "cancelled" | "returned";
 
+/**
+ * Where a loan is, derived from its status and timestamps. `approved` covers
+ * three stages: booked but not yet handed over (upcoming), with the borrower
+ * (active), and returned by the borrower but not yet confirmed by the lender.
+ */
+export type RequestStage =
+  | "pending"
+  | "upcoming"
+  | "active"
+  | "return_pending"
+  | "returned"
+  | "declined"
+  | "cancelled";
+
+/** A borrower's open request for more time. */
+export interface PendingExtension {
+  id: string;
+  requestedDueAt: string;
+  newEndDate: string;
+  extraDays: number;
+  extraSwitchies: number;
+  createdAt: string;
+}
+
 /** API shape. Matches BorrowRequest in the frontend's src/types.ts. */
 export interface BorrowRequest {
   id: string;
@@ -17,15 +41,27 @@ export interface BorrowRequest {
   startDate: string;
   endDate: string;
   days: number;
+  switchiesPerDay: number;
   totalSwitchies: number;
   status: RequestStatus;
+  stage: RequestStage;
   createdAt: string;
+  /** When the item changed hands. Set by either side. */
+  handedOverAt: string | null;
+  /** When the borrower said they'd handed it back. The lender still confirms. */
+  returnRequestedAt: string | null;
+  /** The borrower's open extension request, if any. */
+  pendingExtension: PendingExtension | null;
   /** When the lender approved or declined. */
   decidedAt: string | null;
   /** When the lender wants it back. Set on approval. */
   returnDueAt: string | null;
   /** When the lender confirmed it came back. */
   returnedAt: string | null;
+  /** Late fee charged at the return, in Switchies (null before it's returned). */
+  lateFeeSwitchies: number | null;
+  /** The borrower's preferred return time, a default for the lender's deadline. */
+  requestedReturnAt: string | null;
   /** The lender's score for the borrower on this request, 1-5. */
   borrowerRating: number | null;
   borrowerRatingComment: string | null;
@@ -58,7 +94,7 @@ export class RequestError extends Error {
   }
 }
 
-async function inTransaction<T>(pool: Pool, work: (client: PoolClient) => Promise<T>): Promise<T> {
+export async function inTransaction<T>(pool: Pool, work: (client: PoolClient) => Promise<T>): Promise<T> {
   const client = await pool.connect();
   try {
     await client.query("begin");
@@ -84,25 +120,44 @@ interface RequestRow {
   start_date: string;
   end_date: string;
   days: number;
+  switchies_per_day: number;
   total_switchies: number;
   status: RequestStatus;
   created_at: Date;
   decided_at: Date | null;
   return_due_at: Date | null;
   returned_at: Date | null;
+  late_fee_switchies: number | null;
+  requested_return_at: Date | null;
   borrower_rating: number | null;
   borrower_rating_comment: string | null;
   reviewed: boolean;
   borrower_score_avg: string | null;
   borrower_score_count: string;
   event_request_id: string | null;
+  handed_over_at: Date | null;
+  return_requested_at: Date | null;
+  pending_extension: {
+    id: string;
+    requestedDueAt: string;
+    newEndDate: string;
+    extraDays: number;
+    extraSwitchies: number;
+    createdAt: string;
+  } | null;
 }
 
 const SELECT_REQUEST = `
   select r.id::text, r.item_id, i.title as item_title, r.lender_id, l.display_name as lender_name,
          r.borrower_id, b.display_name as borrower_name, r.start_date, r.end_date, r.days,
-         r.total_switchies, r.status, r.created_at, r.decided_at, r.return_due_at, r.returned_at,
+         r.switchies_per_day, r.total_switchies, r.status, r.created_at, r.decided_at, r.return_due_at, r.returned_at,
+         r.late_fee_switchies, r.requested_return_at,
          r.borrower_rating, r.borrower_rating_comment, r.event_request_id::text,
+         r.handed_over_at, r.return_requested_at,
+         (select json_build_object(
+                   'id', e.id::text, 'requestedDueAt', e.requested_due_at, 'newEndDate', e.new_end_date,
+                   'extraDays', e.extra_days, 'extraSwitchies', e.extra_switchies, 'createdAt', e.created_at)
+            from extension_requests e where e.request_id = r.id and e.status = 'pending') as pending_extension,
          exists (select 1 from reviews v where v.item_id = r.item_id and v.borrower_id = r.borrower_id) as reviewed,
          (select round(avg(x.borrower_rating), 1) from borrow_requests x
            where x.borrower_id = r.borrower_id and x.borrower_rating is not null) as borrower_score_avg,
@@ -113,6 +168,12 @@ const SELECT_REQUEST = `
   left join users l on l.clerk_id = r.lender_id
   left join users b on b.clerk_id = r.borrower_id
 `;
+
+function stageOf(row: Pick<RequestRow, "status" | "handed_over_at" | "return_requested_at">): RequestStage {
+  if (row.status !== "approved") return row.status;
+  if (row.return_requested_at) return "return_pending";
+  return row.handed_over_at ? "active" : "upcoming";
+}
 
 const toRequest = (row: RequestRow): BorrowRequest => ({
   id: row.id,
@@ -125,12 +186,26 @@ const toRequest = (row: RequestRow): BorrowRequest => ({
   startDate: row.start_date,
   endDate: row.end_date,
   days: row.days,
+  switchiesPerDay: row.switchies_per_day,
   totalSwitchies: row.total_switchies,
   status: row.status,
+  stage: stageOf(row),
   createdAt: row.created_at.toISOString(),
+  handedOverAt: row.handed_over_at?.toISOString() ?? null,
+  returnRequestedAt: row.return_requested_at?.toISOString() ?? null,
+  pendingExtension: row.pending_extension
+    ? {
+        ...row.pending_extension,
+        // json_build_object gives "+00:00" offsets; send the same ISO form as everything else.
+        requestedDueAt: new Date(row.pending_extension.requestedDueAt).toISOString(),
+        createdAt: new Date(row.pending_extension.createdAt).toISOString(),
+      }
+    : null,
   decidedAt: row.decided_at?.toISOString() ?? null,
   returnDueAt: row.return_due_at?.toISOString() ?? null,
   returnedAt: row.returned_at?.toISOString() ?? null,
+  lateFeeSwitchies: row.late_fee_switchies,
+  requestedReturnAt: row.requested_return_at?.toISOString() ?? null,
   borrowerRating: row.borrower_rating,
   borrowerRatingComment: row.borrower_rating_comment,
   reviewed: row.reviewed,
@@ -222,7 +297,7 @@ export async function listForLender(pool: Pool, lenderId: string): Promise<Borro
   return result.rows.map(toRequest);
 }
 
-interface PreparedRequest {
+export interface PreparedRequest {
   itemId: number;
   lenderId: string;
   switchiesPerDay: number;
@@ -234,7 +309,7 @@ interface PreparedRequest {
  * Checks one item can be requested for these dates and prices it from the
  * database. Locks the item row so its availability can't change mid-transaction.
  */
-async function prepare(
+export async function prepare(
   client: PoolClient,
   borrowerId: string,
   itemId: number,
@@ -255,6 +330,7 @@ async function prepare(
   const row = item.rows[0];
   if (!row || row.status !== "active") throw new RequestError(404, "That item isn't available any more.");
   if (row.lender_id === borrowerId) throw new RequestError(400, "You can't borrow your own item.");
+  await assertNothingOverdue(client, borrowerId);
 
   const days = daysInclusive(startDate, endDate);
   if (days > row.max_borrow_days) {
@@ -282,8 +358,29 @@ async function prepare(
   };
 }
 
+/**
+ * Borrowers with an overdue item can't ask for anything new until it's back.
+ * "Back" means the lender has confirmed the return: marking it returned
+ * yourself isn't enough. A loan only counts once it was handed over.
+ */
+export async function assertNothingOverdue(db: Pool | PoolClient, borrowerId: string) {
+  const overdue = await db.query<{ title: string }>(
+    `select i.title from borrow_requests r join items i on i.id = r.item_id
+     where r.borrower_id = $1 and r.status = 'approved' and r.handed_over_at is not null
+       and r.return_due_at < now()
+     order by r.return_due_at limit 1`,
+    [borrowerId],
+  );
+  if (overdue.rows[0]) {
+    throw new RequestError(
+      403,
+      `${overdue.rows[0].title} is overdue. Return it before borrowing anything new.`,
+    );
+  }
+}
+
 /** Rejects dates that overlap a fixed booking or an approved request. */
-async function assertDatesFree(
+export async function assertDatesFree(
   client: PoolClient,
   itemId: number,
   startDate: string,
@@ -304,7 +401,7 @@ async function assertDatesFree(
   if (clash.rowCount) throw new RequestError(409, `${title} is already booked on some of those dates.`);
 }
 
-async function assertCanAfford(client: PoolClient, borrowerId: string, total: number) {
+export async function assertCanAfford(client: PoolClient, borrowerId: string, total: number) {
   const result = await client.query<{ switchies_balance: number }>(
     "select switchies_balance from users where clerk_id = $1",
     [borrowerId],
@@ -315,7 +412,7 @@ async function assertCanAfford(client: PoolClient, borrowerId: string, total: nu
   }
 }
 
-async function insertRequest(
+export async function insertRequest(
   client: PoolClient,
   borrowerId: string,
   p: PreparedRequest,
@@ -521,6 +618,18 @@ export function assertReturnTime(value: unknown, startDate: string, endDate: str
   if (time < earliest || time > latest) {
     throw new RequestError(400, "Pick a return time within the borrowing dates.");
   }
+}
+
+/** Requests by id for this user, either side, in an `approved` loan that's under way. */
+export async function listLoansNear(pool: Pool, userId: string, withinMs: number): Promise<BorrowRequest[]> {
+  const result = await pool.query<RequestRow>(
+    `${SELECT_REQUEST}
+     where (r.borrower_id = $1 or r.lender_id = $1)
+       and r.status = 'approved' and r.handed_over_at is not null and r.return_requested_at is null
+       and r.return_due_at is not null and r.return_due_at < now() + make_interval(secs => $2)`,
+    [userId, withinMs / 1000],
+  );
+  return result.rows.map(toRequest);
 }
 
 export async function getAccount(pool: Pool, userId: string) {

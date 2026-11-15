@@ -60,23 +60,26 @@ export const clearToasts = () => {
   if (toasts.length) setToasts([]);
 };
 
-function queueToasts(userId: string, notifications: AppNotification[]) {
+/** Queues toasts for anything new; returns how many arrived since the last load. */
+function queueToasts(userId: string, notifications: AppNotification[]): number {
   if (seenIds?.userId !== userId) {
     seenIds = { userId, ids: new Set(notifications.map((n) => n.id)) };
-    return;
+    return 0;
   }
   const fresh = notifications.filter((n) => !seenIds!.ids.has(n.id) && !n.read);
   notifications.forEach((n) => seenIds!.ids.add(n.id));
-  if (fresh.length === 0) return;
+  if (fresh.length === 0) return 0;
   // Newest last, so the stack reads top to bottom in arrival order.
   setToasts([...toasts, ...fresh.reverse()].slice(-MAX_TOASTS));
+  return fresh.length;
 }
 
 // Bumped whenever notifications are marked read, so a load that started
 // earlier can't bring back the old unread count when it finishes.
 let readVersion = 0;
 
-export async function loadNotifications(userId: string, getToken: GetToken) {
+/** Loads notifications; resolves to how many new ones arrived since the last load. */
+export async function loadNotifications(userId: string, getToken: GetToken): Promise<number> {
   if (state.userId !== userId) setState({ ...empty, userId });
   const startedAt = readVersion;
   try {
@@ -84,14 +87,16 @@ export async function loadNotifications(userId: string, getToken: GetToken) {
       "/api/notifications",
       getToken,
     );
-    if (state.userId !== userId) return;
-    queueToasts(userId, body.notifications);
+    if (state.userId !== userId) return 0;
+    const arrived = queueToasts(userId, body.notifications);
     if (startedAt === readVersion) {
       setState({ userId, loaded: true, ...body });
     }
+    return arrived;
   } catch (error) {
     console.warn("[borrowers] Couldn't load notifications:", (error as Error).message);
   }
+  return 0;
 }
 
 /** Marks every notification read, updating the badge straight away. */

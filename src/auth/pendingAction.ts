@@ -1,5 +1,6 @@
 import { currentHash, safeReturnHash } from "../router";
-import type { EventPlan, ISODate } from "../types";
+import type { PlanDraft } from "../lib/planning";
+import type { ISODate } from "../types";
 
 /**
  * Remembers what a signed-out visitor was doing when they hit a protected
@@ -11,11 +12,10 @@ export type PendingIntent =
   | { kind: "borrow"; itemId: number; startDate: ISODate; endDate: ISODate }
   | {
       kind: "event";
+      /** The description the plan was made from. */
       query: string;
-      plan: EventPlan;
-      selected: number[];
-      startDate: ISODate;
-      endDate: ISODate;
+      /** Everything in the planning workspace: details, dates, checklist and picks. */
+      draft: PlanDraft;
     };
 
 interface StoredIntent {

@@ -4,7 +4,9 @@ import type { AuthConfig } from "./config.ts";
 import { getPool } from "./db.ts";
 import { healthRouter } from "./routes/health.ts";
 import { createItemsRouter, createMyItemsRouter } from "./routes/items.ts";
+import { createFavouritesRouter } from "./routes/favourites.ts";
 import { createMeRouter } from "./routes/me.ts";
+import { createPlansRouter } from "./routes/plans.ts";
 import { createRequestsRouter } from "./routes/requests.ts";
 import { usersRouter } from "./routes/users.ts";
 import { ensureUserProfile, type FetchProfile } from "./users/profiles.ts";
@@ -41,6 +43,8 @@ export function createApp({ auth, requireUser: requireUserOverride, fetchProfile
   app.use("/api/my-items", createMyItemsRouter(protect));
   app.use("/api/me", createMeRouter(protect));
   app.use("/api/users", usersRouter);
+  app.use("/api/favourites", createFavouritesRouter(protect));
+  app.use("/api/plans", createPlansRouter(protect));
   app.use("/api", createRequestsRouter(protect));
 
   app.use("/api", (_req, res) => {

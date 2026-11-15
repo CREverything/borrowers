@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import ActivityBar from "./components/ActivityBar";
+import FavouritesDock from "./components/FavouritesDock";
+import OverdueBanner from "./components/OverdueBanner";
 import Header from "./components/Header";
 import { useAccountSync } from "./hooks/useRequests";
 import { defaultFilters, type MarketplaceFilters } from "./lib/marketplace";
@@ -42,11 +44,11 @@ export default function App() {
       case "item":
         return <ItemDetailPage id={r.id} />;
       case "plan":
-        return <EventPlannerPage query={r.query} />;
+        return <EventPlannerPage query={r.query} planId={r.planId} mine={r.mine} />;
       case "switchies":
         return <SwitchiesPage />;
       case "requests":
-        return <RequestsPage tab={r.tab} section={r.section} />;
+        return <RequestsPage tab={r.tab} section={r.section} view={r.view} focus={r.focus} />;
       case "profile":
         return <ProfilePage />;
       case "user":
@@ -86,7 +88,11 @@ export default function App() {
       </div>
       {/* Holds the activity bar's space at the top of the page (0 when it's not shown). */}
       <div className="activity-spacer" aria-hidden="true" />
-      <main>{renderPage(route)}</main>
+      <main>
+        <OverdueBanner route={route} />
+        {renderPage(route)}
+      </main>
+      <FavouritesDock route={route} />
       <footer className="footer">
         <div className="container footer__inner">
           <span className="logo logo--small">borrowers</span>

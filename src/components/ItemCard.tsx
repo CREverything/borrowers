@@ -1,4 +1,4 @@
-import { Coins, Heart, MapPin } from "lucide-react";
+import { Coins, MapPin } from "lucide-react";
 import { useEffect, useRef, useState, type MouseEvent } from "react";
 import { getCategoryLabel } from "../data/categories";
 import { lenderNameOf } from "../data/users";
@@ -6,6 +6,7 @@ import { getAvailability } from "../lib/availability";
 import { navigate, paths } from "../router";
 import type { Item } from "../types";
 import AvailabilityBadge from "./AvailabilityBadge";
+import FavouriteButton from "./FavouriteButton";
 import ItemIllustration from "./ItemIllustration";
 import { useGatedPlaceholder } from "./LoginPrompt";
 import RatingInline from "./RatingInline";
@@ -36,16 +37,7 @@ export default function ItemCard({ item }: { item: Item }) {
         <span className="card__category">
           {getCategoryLabel(item.category)}
         </span>
-        <button
-          className="card__save"
-          aria-label="Favourite item"
-          onClick={(e) => {
-            stop(e);
-            gatedPlaceholder("favourite");
-          }}
-        >
-          <Heart size={18} />
-        </button>
+        <FavouriteButton item={item} />
       </ItemIllustration>
 
       <div className="card__body">

@@ -201,6 +201,37 @@ export async function reviewListing(getToken: GetToken, itemId: number, score: S
   await afterChange(getToken, { items: true });
 }
 
+/** Either side records that the item changed hands; the loan becomes active. */
+export async function markHandedOver(getToken: GetToken, id: string) {
+  await call(`/api/requests/${encodeURIComponent(id)}/handed-over`, getToken, { method: "POST" });
+  await afterChange(getToken);
+}
+
+/** Borrower says they've given it back. The lender confirms with markReturned. */
+export async function initiateReturn(getToken: GetToken, id: string) {
+  await call(`/api/requests/${encodeURIComponent(id)}/return`, getToken, { method: "POST" });
+  await afterChange(getToken);
+}
+
+/** Borrower asks for a later return time. Nothing changes until the lender approves. */
+export async function requestExtension(
+  getToken: GetToken,
+  id: string,
+  body: { requestedDueAt: string; newEndDate: ISODate },
+) {
+  await call(`/api/requests/${encodeURIComponent(id)}/extensions`, getToken, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+  await afterChange(getToken);
+}
+
+/** Lender accepts or rejects an extension request. */
+export async function decideExtension(getToken: GetToken, extensionId: string, decision: "approve" | "decline") {
+  await call(`/api/extensions/${encodeURIComponent(extensionId)}/${decision}`, getToken, { method: "POST" });
+  await afterChange(getToken, { items: true, balance: decision === "approve" });
+}
+
 export async function declineRequest(getToken: GetToken, id: string) {
   await call(`/api/requests/${encodeURIComponent(id)}/decline`, getToken, { method: "POST" });
   await afterChange(getToken);

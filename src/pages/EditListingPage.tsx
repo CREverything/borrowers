@@ -8,6 +8,7 @@ import { useMyListings } from "../hooks/useMyListings";
 import { navigate, paths } from "../router";
 import {
   ListingError,
+  savePhotoChanges,
   updateListing,
   type FieldErrors,
 } from "../services/listingsApi";
@@ -79,15 +80,17 @@ function EditForm({ id }: { id: number }) {
       mode="edit"
       initial={draftFromItem(item)}
       previewId={item.id}
+      initialPhotos={item.images ?? []}
       lenderName={item.lenderName || (user ? cardName(user.name) : "")}
       serverErrors={serverErrors}
       formError={formError}
       onCancel={() => navigate(paths.myListings())}
-      onSubmit={async (fields, status) => {
+      onSubmit={async (fields, status, photos) => {
         setServerErrors({});
         setFormError(null);
         try {
           await updateListing(getToken, item.id, { ...fields, status });
+          await savePhotoChanges(getToken, item.id, photos);
           navigate(paths.myListings());
         } catch (error) {
           const e = error as ListingError;

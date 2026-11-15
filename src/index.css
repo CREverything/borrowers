@@ -4317,3 +4317,1647 @@ a.lender:hover .lender__name,
     transition: none;
   }
 }
+
+/* ---------- Borrowing: sub-tabs, loan cards, deadlines ---------- */
+
+.status--active {
+  background: var(--aqua-soft);
+  color: var(--indigo);
+}
+
+.status--return-pending {
+  background: var(--lavender-soft);
+  color: var(--indigo);
+}
+
+/* Pending / Upcoming / Active / History under the Borrowing tab. */
+.subtabs {
+  display: flex;
+  gap: 4px;
+  margin: -8px 0 20px;
+  padding: 4px;
+  border-radius: 999px;
+  background: var(--lavender-soft);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.subtabs::-webkit-scrollbar {
+  display: none;
+}
+
+.subtab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1 0 auto;
+  justify-content: center;
+  padding: 7px 14px;
+  border-radius: 999px;
+  color: var(--text-muted);
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.subtab:hover {
+  color: var(--indigo);
+}
+
+.subtab--active {
+  background: var(--surface);
+  color: var(--indigo);
+  box-shadow: var(--shadow);
+}
+
+.subtab__count {
+  min-width: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgba(57, 47, 90, 0.08);
+  font-size: 12px;
+  text-align: center;
+}
+
+.subtab__alert {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--jasmine);
+  box-shadow: 0 0 0 2px var(--surface);
+}
+
+.empty--compact {
+  padding: 36px 16px;
+}
+
+.loan-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.loan-card {
+  display: flex;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--surface);
+  scroll-margin-top: calc(96px + var(--activity-offset, 0px));
+  transition: box-shadow 0.3s;
+}
+
+.loan-card--soon {
+  border-color: var(--jasmine);
+  background: #fffaea;
+}
+
+.loan-card--overdue {
+  border-color: rgba(180, 55, 31, 0.35);
+  background: #fdf3f0;
+}
+
+.loan-card--returning {
+  background: var(--floral);
+}
+
+/* Briefly ring the card a deadline link pointed at. */
+.loan-card--focus {
+  box-shadow: 0 0 0 3px var(--orange);
+}
+
+.loan-card__media {
+  flex-shrink: 0;
+  width: 64px;
+  height: 64px;
+  border-radius: 14px;
+}
+
+.loan-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.loan-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.loan-card__head h3 {
+  font-size: 18px;
+  overflow-wrap: anywhere;
+}
+
+.loan-card__head h3 a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.loan-card__head .status {
+  flex-shrink: 0;
+}
+
+.loan-card__facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 24px;
+  margin: 0;
+}
+
+.loan-card__facts dt {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.loan-card__facts dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+.loan-card__progress-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.loan-card__progress {
+  flex: 1;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--lavender-soft);
+}
+
+.loan-card__progress > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--aqua);
+}
+
+.loan-card__left {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.loan-card__left--upcoming {
+  color: var(--limited-text);
+  font-weight: 600;
+}
+
+.loan-card__countdown {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+}
+
+.loan-card__countdown > span {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Only the headline ("Overdue by 2h") is large; amounts in the sentence stay text-sized. */
+.loan-card__countdown > span > strong {
+  font-size: 20px;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+
+.loan-card__sub {
+  font-size: 13px;
+}
+
+.loan-card__countdown--soon {
+  background: var(--jasmine-soft);
+  color: var(--limited-text);
+}
+
+.loan-card__countdown--overdue {
+  background: rgba(180, 55, 31, 0.1);
+  color: var(--error);
+}
+
+.loan-card__notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: var(--lavender-soft);
+  font-size: 13px;
+}
+
+.loan-card__notice svg,
+.loan-card__countdown svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.loan-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.request-row__note {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  flex-basis: 100%;
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--jasmine-soft);
+  font-size: 13px;
+}
+
+.request-row__note svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.extension-quote {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--aqua-soft);
+}
+
+@media (max-width: 600px) {
+  .loan-card {
+    flex-direction: column;
+  }
+
+  .loan-card__head {
+    flex-direction: column;
+  }
+
+  .subtab {
+    padding: 7px 10px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loan-card {
+    transition: none;
+  }
+}
+
+/* Deadline indicator inside the existing activity bar (no layout or scroll changes). */
+.activity__deadline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 4px 12px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.activity__deadline--soon {
+  background: var(--jasmine-soft);
+  border-color: var(--jasmine);
+  color: var(--limited-text);
+}
+
+.activity__deadline--overdue {
+  background: rgba(180, 55, 31, 0.1);
+  border-color: rgba(180, 55, 31, 0.3);
+  color: var(--error);
+}
+
+.activity__deadline:hover .activity__deadline-text {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.activity__deadline-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.activity__deadline-item {
+  font-weight: 700;
+}
+
+.activity__deadline-more {
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.7);
+  font-size: 12px;
+}
+
+.activity-slot--condensed .activity__deadline {
+  padding: 0 12px;
+  border-width: 0 1px;
+  border-radius: 0;
+}
+
+.activity__pill--soon {
+  border-color: var(--jasmine);
+}
+
+.activity__pill--overdue {
+  border-color: rgba(180, 55, 31, 0.3);
+  background: rgba(180, 55, 31, 0.1);
+  color: var(--error);
+}
+
+@media (max-width: 720px) {
+  .activity__deadline {
+    padding: 8px 12px;
+    border-radius: 10px;
+  }
+}
+
+/* ---------- Listing photos ---------- */
+
+.illustration--photo {
+  overflow: hidden;
+  background-image: none;
+}
+
+.illustration__photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Item page: never crop the photo; the blurred layer fills any leftover space. */
+.illustration__photo--contain {
+  object-fit: contain;
+}
+
+.illustration__photo-bg {
+  position: absolute;
+  inset: -12%;
+  width: 124%;
+  height: 124%;
+  object-fit: cover;
+  filter: blur(18px) saturate(1.1);
+  opacity: 0.85;
+}
+
+/* Overlays (category tag, heart) stay above the photo. */
+.illustration--photo > :not(.illustration__photo):not(.illustration__photo-bg) {
+  z-index: 1;
+}
+
+.gallery {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.gallery__thumbs {
+  display: flex;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-x: auto;
+}
+
+.gallery__thumb {
+  display: block;
+  width: 64px;
+  height: 64px;
+  padding: 0;
+  overflow: hidden;
+  border: 2px solid transparent;
+  border-radius: 12px;
+  background: var(--lavender-soft);
+  opacity: 0.75;
+}
+
+.gallery__thumb:hover,
+.gallery__thumb--active {
+  opacity: 1;
+}
+
+.gallery__thumb--active {
+  border-color: var(--indigo);
+}
+
+.gallery__thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.photo-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.photo-picker__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.photo-picker__item,
+.photo-picker__add {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 14px;
+}
+
+.photo-picker__item {
+  overflow: hidden;
+  background: var(--lavender-soft);
+}
+
+.photo-picker__item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.photo-picker__cover {
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--indigo);
+}
+
+.photo-picker__remove {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(34, 27, 56, 0.7);
+  color: #fff;
+}
+
+.photo-picker__remove:hover {
+  background: var(--text);
+}
+
+.photo-picker__add {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 2px dashed var(--border);
+  background: var(--surface);
+  color: var(--indigo);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.photo-picker__add:hover {
+  border-color: var(--indigo);
+}
+
+/* The file input is visually hidden; show focus on its label tile. */
+.photo-picker li:has(input:focus-visible) .photo-picker__add {
+  outline: 2px solid var(--orange);
+  outline-offset: 2px;
+}
+
+.photo-picker__add--busy {
+  cursor: progress;
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ---------- Favourites ---------- */
+
+.card__save--on {
+  color: #d64545;
+}
+
+.favourites-dock {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.favourites-fab {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border: none;
+  border-radius: 50%;
+  background: var(--indigo);
+  color: #fff;
+  box-shadow: var(--shadow-hover);
+  transition: transform 0.15s;
+}
+
+.favourites-fab:hover {
+  transform: translateY(-2px);
+}
+
+.favourites-fab--open {
+  background: var(--text);
+}
+
+.favourites-fab__count {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  display: grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border: 2px solid var(--floral);
+  border-radius: 999px;
+  background: var(--orange);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.favourites-panel {
+  width: min(340px, calc(100vw - 32px));
+  max-height: min(440px, calc(100vh - 220px));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-hover);
+  animation: toast-in 0.15s ease-out;
+}
+
+.favourites-panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 12px 10px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.favourites-panel__head h2 {
+  font-size: 18px;
+}
+
+.favourites-panel__empty {
+  margin: 0;
+  padding: 20px 16px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.favourites-panel__empty svg {
+  vertical-align: -2px;
+}
+
+.favourites-panel__list {
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  overflow-y: auto;
+}
+
+.favourite-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  border-radius: 10px;
+}
+
+.favourite-row:hover {
+  background: var(--floral);
+}
+
+.favourite-row__thumb {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  background-image: none;
+}
+
+.favourite-row__text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.favourite-row__text a {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.favourite-row__text a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.favourite-row__remove {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: #d64545;
+}
+
+.favourite-row__remove:hover {
+  background: var(--lavender-soft);
+}
+
+@media (max-width: 600px) {
+  .favourites-dock {
+    right: 16px;
+    bottom: 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spin,
+  .favourites-panel {
+    animation: none;
+  }
+
+  .favourites-fab {
+    transition: none;
+  }
+}
+
+/* ---------- Event planner workspace ---------- */
+
+.workspace {
+  min-width: 0;
+}
+
+.workspace__details {
+  padding: 18px 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+/* Inputs stay sans-serif like every other form field; just a little larger for the name. */
+.workspace__title {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+/* Grows with the text up to a limit, then scrolls; no giant boxes. */
+.field textarea.workspace__description {
+  min-height: 84px;
+  max-height: 200px;
+}
+
+.workspace__dates {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 24px;
+  padding: 18px 20px;
+  border-radius: var(--radius);
+  background: var(--lavender-soft);
+}
+
+.workspace__dates h3,
+.workspace__list-head h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+/* Calendar on the left; times, event day and guidance on the right, same height. */
+.workspace__date-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(220px, 2fr);
+  gap: 14px;
+  align-items: stretch;
+}
+
+.workspace__date-side {
+  gap: 14px;
+}
+
+.workspace__date-hints {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.workspace__date-hints:empty {
+  display: none;
+}
+
+/* Calendars sit on white cards, like the booking panel on item pages. */
+.workspace__calendar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 14px;
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.workspace__times {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.workspace__dates .link-btn {
+  align-self: flex-start;
+  font-size: 14px;
+}
+
+.workspace__hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0;
+  font-size: 14px;
+  color: var(--indigo);
+}
+
+.workspace__hint svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.workspace__hint--warn {
+  color: var(--limited-text);
+}
+
+.workspace__list-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.req--confirmed {
+  border-color: var(--ok);
+}
+
+.req--confirmed .checklist__mark {
+  color: var(--ok);
+}
+
+.req--requested .checklist__mark,
+.req--selected .checklist__mark,
+.req--partial .checklist__mark {
+  color: var(--indigo);
+}
+
+.req--attention {
+  border-color: var(--jasmine);
+  background: #fffaea;
+}
+
+.req--attention .checklist__mark {
+  color: var(--limited-text);
+}
+
+.req__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.req__info h3 {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.req__importance {
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  box-shadow: none;
+}
+
+.req__importance--essential {
+  background: var(--aqua-soft);
+}
+
+.req__importance--optional {
+  background: var(--lavender-soft);
+}
+
+.req__status {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.req__status strong {
+  color: var(--indigo);
+}
+
+.req__controls {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.stepper {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--floral);
+}
+
+.stepper button {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--indigo);
+}
+
+.stepper button:disabled {
+  opacity: 0.35;
+}
+
+.stepper span {
+  min-width: 22px;
+  font-weight: 700;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.req__attention {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 12px 0 0;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--jasmine-soft);
+  color: var(--limited-text);
+  font-size: 14px;
+}
+
+.req__attention svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.req__more {
+  margin-top: 8px;
+  font-size: 14px;
+}
+
+.match--unavailable {
+  opacity: 0.7;
+}
+
+.match--unavailable.match--selected {
+  border-color: var(--jasmine);
+  opacity: 1;
+}
+
+.match__text .status {
+  align-self: flex-start;
+  margin-top: 2px;
+}
+
+.avail {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.avail--ok {
+  color: var(--ok-text);
+}
+
+.avail--off {
+  color: var(--off-text);
+}
+
+.suggestions {
+  margin-top: 20px;
+}
+
+.suggestions p svg {
+  vertical-align: -2px;
+}
+
+.add-req {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 96px 150px auto;
+  align-items: end;
+  gap: 12px;
+  margin-top: 20px;
+  padding: 16px;
+  border: 1.5px dashed var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+/* Every control in the row is the same height, so labels and bottoms line up. */
+.add-req .field input,
+.add-req .dropdown__trigger,
+.add-req .btn {
+  height: 42px;
+}
+
+.add-req .btn {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+/* Readiness sidebar (sticky like the booking panel, so it scrolls inside itself if long). */
+.readiness {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-height: calc(100vh - 120px - var(--activity-offset, 0px));
+  overflow-y: auto;
+}
+
+.readiness__progress p {
+  margin: 0 0 6px;
+}
+
+.readiness__bar {
+  display: block;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--lavender-soft);
+}
+
+.readiness__bar > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--ok);
+  transition: width 0.3s ease;
+}
+
+.readiness__list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+}
+
+.readiness__list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.readiness__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.readiness__state {
+  flex-shrink: 0;
+  font-size: 11px;
+}
+
+.readiness__state--confirmed {
+  background: rgba(46, 138, 87, 0.12);
+  color: var(--ok-text);
+}
+
+.readiness__state--requested,
+.readiness__state--selected,
+.readiness__state--partial {
+  background: var(--lavender-soft);
+  color: var(--indigo);
+}
+
+.readiness__state--attention {
+  background: var(--jasmine-soft);
+  color: var(--limited-text);
+}
+
+.readiness__state--missing {
+  background: var(--floral);
+  color: var(--off-text);
+}
+
+/* Selected -> Requested -> Confirmed, explained once so the words are unambiguous. */
+.readiness__steps {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.readiness__steps li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--floral);
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+.readiness__steps li > strong {
+  min-width: 22px;
+  font-size: 18px;
+  line-height: 1.1;
+  color: var(--text);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.readiness__steps b {
+  display: block;
+  color: var(--indigo);
+}
+
+.readiness__steps li:last-child {
+  background: rgba(46, 138, 87, 0.08);
+}
+
+.readiness__short {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--jasmine-soft);
+  font-size: 13px;
+  color: var(--limited-text);
+}
+
+.readiness__short-title {
+  margin: 0 0 4px;
+  font-weight: 700;
+}
+
+.readiness__short ul {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding-left: 18px;
+}
+
+.req__supply {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--limited-text);
+}
+
+.readiness__counts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0;
+  text-align: center;
+}
+
+.readiness__counts div {
+  padding: 8px 4px;
+  border-radius: 10px;
+  background: var(--floral);
+}
+
+.readiness__counts dt {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.readiness__counts dd {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.readiness .btn svg {
+  flex-shrink: 0;
+}
+
+/* Review dialog */
+.review-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 320px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.review-list li {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--floral);
+  font-size: 14px;
+}
+
+.review-list li.review-list__ok,
+.review-list li.review-list__fail {
+  justify-content: flex-start;
+}
+
+.review-list__ok svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--ok);
+}
+
+.review-list__fail svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--error);
+}
+
+.review-list__price {
+  flex-shrink: 0;
+  font-weight: 700;
+}
+
+.review-total {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+}
+
+/* My plans */
+.plan-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.plan-card {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.plan-card__main {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  padding: 18px;
+  color: inherit;
+}
+
+.plan-card__main:hover h3 {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.plan-card__main h3 {
+  font-size: 19px;
+}
+
+.plan-card__main p svg {
+  vertical-align: -2px;
+}
+
+.plan-card__actions {
+  display: flex;
+  gap: 4px;
+  padding: 8px 10px;
+  border-top: 1px solid var(--border);
+  background: var(--floral);
+}
+
+/* Loading skeleton */
+.planner-loading-block {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.skeleton {
+  height: 72px;
+  border-radius: var(--radius);
+  background: linear-gradient(90deg, var(--lavender-soft) 25%, #f3f0f8 50%, var(--lavender-soft) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+
+.skeleton--title {
+  width: 50%;
+  height: 32px;
+}
+
+@keyframes shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@media (max-width: 960px) {
+  .planner-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 760px) {
+  .workspace__date-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .workspace__date-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .add-req {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .add-req__name {
+    grid-column: 1 / -1;
+  }
+
+  .add-req button {
+    grid-column: 1 / -1;
+  }
+
+  .checklist__head {
+    flex-wrap: wrap;
+  }
+
+  .req__controls {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .readiness__counts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .match {
+    flex-wrap: wrap;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
+
+  .readiness__bar > span {
+    transition: none;
+  }
+}
+
+/* ---------- Dropdown as a form field (time pickers, "Needed?") ---------- */
+
+.dropdown--field {
+  width: 100%;
+}
+
+.dropdown--field .dropdown__trigger {
+  width: 100%;
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 9px 10px;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.dropdown--field .dropdown__trigger svg:first-child {
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.dropdown--field .dropdown__chevron {
+  margin-left: auto;
+  color: var(--text-muted);
+}
+
+.dropdown--field .dropdown__trigger:hover,
+.dropdown--field.dropdown--open .dropdown__trigger {
+  border-color: var(--indigo);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.dropdown--field .dropdown__trigger:focus-visible {
+  outline: none;
+  border-color: var(--indigo);
+  box-shadow: 0 0 0 3px rgba(57, 47, 90, 0.15);
+}
+
+.dropdown--field .dropdown__trigger[aria-invalid='true'] {
+  border-color: var(--error);
+}
+
+.dropdown--empty .dropdown__trigger span {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.dropdown--field .dropdown__list {
+  min-width: 100%;
+  max-height: 240px;
+}
+
+/* A date on the shared calendar plus a time (return deadlines, extensions). */
+.date-time {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.date-time__time {
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+/* A day when some (not all) selected listings are booked: still selectable. */
+.calendar__day--partial::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 5px;
+  width: 5px;
+  height: 5px;
+  margin-left: -2.5px;
+  border-radius: 50%;
+  background: var(--limited);
+}
+
+.calendar__day--partial.calendar__day--selected::after {
+  background: var(--jasmine);
+}
+
+.calendar__swatch--partial {
+  position: relative;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 75%, var(--limited) 0 2px, var(--surface) 2.5px);
+}
+
+.review-warning {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--jasmine-soft);
+  color: var(--limited-text);
+  font-size: 14px;
+}
+
+.review-warning p {
+  margin: 0 0 6px;
+}
+
+.review-warning ul {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+}
+
+/* ---------- Overdue banner (every page, until the item is marked returned) ---------- */
+
+.overdue-banner {
+  background: #fdf3f0;
+  border-bottom: 1px solid rgba(180, 55, 31, 0.25);
+  color: var(--error);
+}
+
+.overdue-banner__inner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+
+.overdue-banner__inner > svg {
+  flex-shrink: 0;
+}
+
+.overdue-banner p {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.overdue-banner__action {
+  flex-shrink: 0;
+  border-color: var(--error);
+  background: var(--surface);
+  color: var(--error);
+}
+
+.overdue-banner__action:hover {
+  background: var(--error);
+  color: #fff;
+}
+
+@media (max-width: 600px) {
+  .overdue-banner__inner {
+    flex-wrap: wrap;
+  }
+
+  .overdue-banner__action {
+    margin-left: 32px;
+  }
+}
+
+/* ---------- Related items on the item page ----------
+   Compact cards in exactly three columns of the main column, so they line up
+   with the panels above instead of using the marketplace's card size. */
+
+.related {
+  margin-top: 24px;
+}
+
+.related h2 {
+  margin-bottom: 14px;
+  font-size: 24px;
+}
+
+.related__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.related .card__media {
+  aspect-ratio: 16 / 10;
+}
+
+.related .card__body {
+  gap: 4px;
+  padding: 10px 12px 12px;
+}
+
+.related .card__title {
+  font-size: 15px;
+}
+
+.related .card__meta,
+.related .availability {
+  font-size: 12px;
+}
+
+.related .card__category {
+  top: 8px;
+  left: 8px;
+  padding: 3px 8px;
+  font-size: 11px;
+}
+
+.related .card__save {
+  top: 8px;
+  right: 8px;
+  width: 30px;
+  height: 30px;
+}
+
+.related .card__save svg {
+  width: 15px;
+  height: 15px;
+}
+
+.related .card__footer {
+  margin-top: 4px;
+}
+
+.related .card__price {
+  font-size: 13px;
+}
+
+.related .card__price strong {
+  font-size: 17px;
+}
+
+.related .card__footer .btn {
+  padding: 5px 12px;
+  font-size: 13px;
+}
+
+/* The icon fallback is scaled for full-size cards; shrink it here. */
+.related .illustration:not(.illustration--photo) > svg {
+  width: 44px;
+  height: 44px;
+}
+
+@media (max-width: 720px) {
+  .related__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 460px) {
+  .related__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.loan-card__fee {
+  font-size: inherit;
+  font-weight: 700;
+}
+
+.booking__calendar-note {
+  margin: -2px 0 0;
+  line-height: 1.45;
+}

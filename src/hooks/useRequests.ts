@@ -6,6 +6,7 @@ import {
   resetAccount,
   subscribeToAccount,
 } from "../services/accountStore";
+import { loadFavourites, resetFavourites } from "../services/favouritesStore";
 import {
   getActivityState,
   refreshActivity,
@@ -44,6 +45,7 @@ export function useAccountSync() {
       resetAccount();
       resetNotifications();
       resetActivity();
+      resetFavourites();
       return;
     }
     const refresh = () => {
@@ -51,6 +53,7 @@ export function useAccountSync() {
       void refreshAccount(getToken, userId);
       void loadNotifications(userId, getToken);
       void refreshActivity(getToken, userId);
+      void loadFavourites(userId, getToken);
     };
     refresh();
     // Other people's actions (approvals, returns, reviews) change things, so
@@ -58,7 +61,14 @@ export function useAccountSync() {
     window.addEventListener("focus", refresh);
     const timer = window.setInterval(() => {
       if (document.visibilityState !== "visible") return;
-      void loadNotifications(userId, getToken);
+      // Something new (an approval, an extension decision, a return) usually
+      // means the requests and balance changed too.
+      void loadNotifications(userId, getToken).then((arrived) => {
+        if (arrived > 0) {
+          void loadRequests(userId, getToken);
+          void refreshAccount(getToken, userId);
+        }
+      });
       // New incoming requests arrive without any action here, so poll the counts too.
       void refreshActivity(getToken, userId);
     }, POLL_MS);

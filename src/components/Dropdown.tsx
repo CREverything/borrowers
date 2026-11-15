@@ -15,10 +15,18 @@ export interface DropdownOption<T extends string> {
 interface DropdownProps<T extends string> {
   /** Accessible name, e.g. "Sort by". */
   label: string;
-  icon: LucideIcon;
+  icon?: LucideIcon;
   value: T;
   options: DropdownOption<T>[];
   onChange: (value: T) => void;
+  /** "pill" (default) for toolbars; "field" to look like a form input. */
+  variant?: "pill" | "field";
+  /** Shown when `value` isn't one of the options, e.g. "Choose a time". */
+  placeholder?: string;
+  /** Points a <label htmlFor> at the trigger. */
+  id?: string;
+  /** Marks the field as invalid, like aria-invalid on an input. */
+  invalid?: boolean;
 }
 
 /**
@@ -32,6 +40,10 @@ export default function Dropdown<T extends string>({
   value,
   options,
   onChange,
+  variant = "pill",
+  placeholder,
+  id: triggerId,
+  invalid,
 }: DropdownProps<T>) {
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
@@ -41,10 +53,9 @@ export default function Dropdown<T extends string>({
   const buttonRef = useRef<HTMLButtonElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
   const id = useId();
-  const selectedIndex = Math.max(
-    0,
-    options.findIndex((o) => o.value === value),
-  );
+  const matchIndex = options.findIndex((o) => o.value === value);
+  const selectedIndex = Math.max(0, matchIndex);
+  const shownLabel = matchIndex >= 0 ? options[matchIndex].label : (placeholder ?? options[0]?.label);
 
   const openList = (index = selectedIndex) => {
     const box = rootRef.current?.getBoundingClientRect();
@@ -132,22 +143,24 @@ export default function Dropdown<T extends string>({
 
   return (
     <div
-      className={`dropdown${open ? " dropdown--open" : ""}`}
+      className={`dropdown dropdown--${variant}${open ? " dropdown--open" : ""}${matchIndex < 0 && placeholder ? " dropdown--empty" : ""}`}
       ref={rootRef}
     >
       <button
         ref={buttonRef}
         type="button"
+        id={triggerId}
         className="dropdown__trigger"
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={`${id}-list`}
-        aria-label={`${label}: ${options[selectedIndex]?.label}`}
+        aria-invalid={invalid || undefined}
+        aria-label={`${label}: ${shownLabel}`}
         onClick={() => (open ? close() : openList())}
         onKeyDown={onButtonKey}
       >
-        <Icon size={16} aria-hidden="true" />
-        <span>{options[selectedIndex]?.label}</span>
+        {Icon && <Icon size={16} aria-hidden="true" />}
+        <span>{shownLabel}</span>
         <ChevronDown
           size={16}
           aria-hidden="true"

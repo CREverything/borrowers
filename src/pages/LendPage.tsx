@@ -8,6 +8,7 @@ import { navigate, paths } from "../router";
 import {
   createListing,
   ListingError,
+  savePhotoChanges,
   type FieldErrors,
 } from "../services/listingsApi";
 
@@ -41,16 +42,24 @@ export default function LendPage() {
           serverErrors={serverErrors}
           formError={formError}
           onCancel={() => navigate(paths.browse)}
-          onSubmit={async (fields) => {
+          onSubmit={async (fields, _status, photos) => {
             setServerErrors({});
             setFormError(null);
+            let item;
             try {
-              const item = await createListing(getToken, fields);
-              navigate(paths.myListings(item.id));
+              item = await createListing(getToken, fields);
             } catch (error) {
               const e = error as ListingError;
               setServerErrors(e.fields ?? {});
               setFormError(e.message);
+              return;
+            }
+            try {
+              await savePhotoChanges(getToken, item.id, photos);
+              navigate(paths.myListings(item.id));
+            } catch {
+              // The listing exists; send them to edit it so photos can be retried without a duplicate.
+              navigate(paths.editListing(item.id));
             }
           }}
         />

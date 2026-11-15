@@ -19,7 +19,7 @@ import {
   Speaker,
   Table2,
 } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import type { Item } from '../types'
 
 /** Maps `Item.iconKey` to an icon. Listings from the backend fall back to a generic box. */
@@ -75,14 +75,49 @@ interface ItemIllustrationProps {
   item: Item
   size: number
   className?: string
+  /** Show this photo instead of the cover (the detail page's gallery). */
+  photoUrl?: string | null
+  /**
+   * cover (default): the photo fills the space, cropped as needed.
+   * contain: the whole photo at its own proportions, over a blurred copy.
+   */
+  fit?: 'cover' | 'contain'
   children?: ReactNode
 }
 
-export default function ItemIllustration({ item, size, className = '', children }: ItemIllustrationProps) {
+/** The item's cover photo if it has one, otherwise its icon on a pastel tint. */
+export default function ItemIllustration({
+  item,
+  size,
+  className = '',
+  photoUrl,
+  fit = 'cover',
+  children,
+}: ItemIllustrationProps) {
   const Icon = getItemIcon(item)
+  const src = photoUrl ?? item.imageUrl ?? null
+  const [failed, setFailed] = useState<string | null>(null)
+  const showPhoto = !!src && failed !== src
   return (
-    <div className={`illustration ${tintClass(item)} ${className}`}>
-      <Icon size={size} strokeWidth={1.5} aria-hidden="true" />
+    <div className={`illustration ${tintClass(item)} ${showPhoto ? 'illustration--photo' : ''} ${className}`}>
+      {showPhoto ? (
+        <>
+          {/* The whole photo at its own proportions, over a blurred copy that fills the gaps. */}
+          {fit === 'contain' && (
+            <img className="illustration__photo-bg" src={src} alt="" aria-hidden="true" loading="lazy" decoding="async" />
+          )}
+          <img
+            className={`illustration__photo illustration__photo--${fit}`}
+            src={src}
+            alt=""
+            loading="lazy"
+            decoding="async"
+            onError={() => setFailed(src)}
+          />
+        </>
+      ) : (
+        <Icon size={size} strokeWidth={1.5} aria-hidden="true" />
+      )}
       {children}
     </div>
   )

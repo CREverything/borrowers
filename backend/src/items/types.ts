@@ -66,7 +66,10 @@ export interface Item {
   switchiesPerDay: number;
   rating?: { average: number; count: number };
   iconKey: string;
+  /** The cover photo's URL (the first upload), or null. */
   imageUrl: string | null;
+  /** Every uploaded photo, cover first. */
+  images: { id: string; url: string }[];
   keywords: string[];
   status: ItemStatus;
   createdAt: string;

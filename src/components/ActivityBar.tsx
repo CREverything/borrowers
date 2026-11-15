@@ -1,7 +1,18 @@
-import { ArrowRight, ChevronDown, Handshake, Inbox, Package } from "lucide-react";
+import {
+  ArrowRight,
+  ChevronDown,
+  Handshake,
+  Hourglass,
+  Inbox,
+  Package,
+  ShoppingBag,
+  TriangleAlert,
+} from "lucide-react";
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 import { useAuthState } from "../auth/AuthContext";
-import { useActivity } from "../hooks/useRequests";
+import { useNow } from "../hooks/useNow";
+import { useActivity, useRequests } from "../hooks/useRequests";
+import { formatDuration, parseTime, urgentFirst } from "../lib/deadline";
 import { scrollToTop } from "../lib/scroll";
 import { paths, type Route } from "../router";
 import { refreshActivity } from "../services/activityStore";
@@ -76,7 +87,9 @@ function Bar({ route }: { route: Route }) {
       const y = window.scrollY;
       // Don't condense while the spacer is still on screen (a tall open mobile panel).
       const condenseAt = Math.max(CONDENSE_AT, spacerRef.current + 40);
-      setCondensed((was) => (was ? y > condenseAt - EXPAND_GAP : y > condenseAt));
+      setCondensed((was) =>
+        was ? y > condenseAt - EXPAND_GAP : y > condenseAt,
+      );
       syncSpacer();
     };
     const onScroll = () => {
@@ -101,14 +114,45 @@ function Bar({ route }: { route: Route }) {
 
   const count = (n: number | undefined) => (n === undefined ? "–" : n);
 
+  // Things you've borrowed that are due within a day or overdue, worst first.
+  const now = useNow();
+  const { status: requestsStatus, borrowRequests } = useRequests();
+  // Items you have right now, including returns the lender hasn't confirmed yet.
+  const borrowed =
+    requestsStatus === "ready" || borrowRequests.length > 0
+      ? borrowRequests.filter(
+          (r) => r.stage === "active" || r.stage === "return_pending",
+        ).length
+      : undefined;
+  const urgent = urgentFirst(
+    // A return the lender hasn't confirmed still counts as overdue (but isn't "due soon").
+    borrowRequests.filter(
+      (r) => r.stage === "active" || (r.stage === "return_pending" && !!r.returnDueAt && Date.parse(r.returnDueAt) < now),
+    ),
+    now,
+  );
+  const top = urgent[0];
+  const topDue = top ? parseTime(top.returnDueAt) : null;
+  const topOverdue = topDue !== null && topDue <= now;
+  const topLeft = topDue === null ? "" : formatDuration(Math.abs(topDue - now));
+
   const onKeyDown = (e: KeyboardEvent) => {
     if (e.key === "Escape" && open) setOpen(false);
   };
 
   return (
-    <div className={`activity-slot${condensed ? " activity-slot--condensed" : ""}`}>
-      <nav ref={barRef} className="activity" aria-label="Your lending activity" onKeyDown={onKeyDown}>
-        <div className={`container activity__inner${open ? " activity__inner--open" : ""}`}>
+    <div
+      className={`activity-slot${condensed ? " activity-slot--condensed" : ""}`}
+    >
+      <nav
+        ref={barRef}
+        className="activity"
+        aria-label="Your lending activity"
+        onKeyDown={onKeyDown}
+      >
+        <div
+          className={`container activity__inner${open ? " activity__inner--open" : ""}`}
+        >
           <button
             className="activity__toggle"
             aria-expanded={open && !condensed}
@@ -124,17 +168,32 @@ function Bar({ route }: { route: Route }) {
             }}
           >
             <span>Your activity</span>
-            {pending > 0 && (
-              <span className="activity__pill">{pending} needs approval</span>
+            {top ? (
+              <span
+                className={`activity__pill activity__pill--${topOverdue ? "overdue" : "soon"}`}
+              >
+                {topOverdue ? `Overdue ${topLeft}` : `Due in ${topLeft}`}
+              </span>
+            ) : (
+              pending > 0 && (
+                <span className="activity__pill">{pending} needs approval</span>
+              )
             )}
-            <ChevronDown size={16} aria-hidden="true" className="activity__chevron" />
+            <ChevronDown
+              size={16}
+              aria-hidden="true"
+              className="activity__chevron"
+            />
           </button>
 
           <div className="activity__panel" id={panelId} aria-busy={loading}>
             {failed ? (
               <p className="activity__error">
                 Activity counts aren't available right now.
-                <button className="link-btn" onClick={() => void refreshActivity(getToken)}>
+                <button
+                  className="link-btn"
+                  onClick={() => void refreshActivity(getToken)}
+                >
                   Try again
                 </button>
               </p>
@@ -147,9 +206,21 @@ function Bar({ route }: { route: Route }) {
                   </a>
                 </li>
                 <li>
-                  <a className="activity__stat" href={paths.lendingSection("on-loan")}>
+                  <a
+                    className="activity__stat"
+                    href={paths.lendingSection("on-loan")}
+                  >
                     <Handshake size={16} aria-hidden="true" />
                     <strong>{count(summary?.currentlyLent)}</strong> lent out
+                  </a>
+                </li>
+                <li>
+                  <a
+                    className="activity__stat"
+                    href={paths.borrowing("active")}
+                  >
+                    <ShoppingBag size={16} aria-hidden="true" />
+                    <strong>{count(borrowed)}</strong> borrowed
                   </a>
                 </li>
                 <li>
@@ -159,12 +230,40 @@ function Bar({ route }: { route: Route }) {
                   >
                     <Inbox size={16} aria-hidden="true" />
                     <strong>{count(summary?.pendingApprovals)}</strong>{" "}
-                    {pending === 1 || !summary ? "needs approval" : "need approval"}
+                    {pending === 1 || !summary
+                      ? "pending approval"
+                      : "pending approval"}
                   </a>
                 </li>
               </ul>
             )}
-            {loading && <span className="sr-only">Loading your activity...</span>}
+            {top && (
+              <a
+                className={`activity__deadline activity__deadline--${topOverdue ? "overdue" : "soon"}`}
+                href={paths.borrowing("active", top.id)}
+              >
+                {topOverdue ? (
+                  <TriangleAlert size={16} aria-hidden="true" />
+                ) : (
+                  <Hourglass size={16} aria-hidden="true" />
+                )}
+                <span className="activity__deadline-text">
+                  <span className="activity__deadline-item">
+                    {top.itemTitle || "An item"}
+                  </span>{" "}
+                  {topOverdue ? `overdue by ${topLeft}` : `due in ${topLeft}`}
+                </span>
+                {urgent.length > 1 && (
+                  <span className="activity__deadline-more">
+                    +{urgent.length - 1}
+                    <span className="sr-only"> more due soon or overdue</span>
+                  </span>
+                )}
+              </a>
+            )}
+            {loading && (
+              <span className="sr-only">Loading your activity...</span>
+            )}
             <a className="activity__more" href={paths.lendingRequests}>
               View activity
               <ArrowRight size={14} aria-hidden="true" />

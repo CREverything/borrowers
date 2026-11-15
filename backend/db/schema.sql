@@ -179,3 +179,108 @@ create table if not exists notifications (
 );
 
 create index if not exists notifications_user_idx on notifications (user_id, created_at desc);
+
+-- Loan tracking. `approved` stays the stored status for a booked loan; these
+-- timestamps say where it is, and the API derives a stage from them:
+--   approved, no handover            -> upcoming
+--   approved, handed over            -> active
+--   approved, borrower says returned -> return pending (lender must confirm)
+alter table borrow_requests add column if not exists handed_over_at timestamptz;
+alter table borrow_requests add column if not exists return_requested_at timestamptz;
+
+-- A borrower's request for more time on an active loan. Nothing changes on
+-- the loan until the lender approves; then the deadline, end date and price
+-- move together, in one transaction with the extra Switchies.
+create table if not exists extension_requests (
+  id bigint generated always as identity primary key,
+  request_id bigint not null references borrow_requests (id),
+  borrower_id text not null references users (clerk_id),
+  lender_id text not null references users (clerk_id),
+  current_due_at timestamptz not null,
+  requested_due_at timestamptz not null check (requested_due_at > current_due_at),
+  new_end_date date not null,
+  extra_days integer not null check (extra_days >= 0),
+  extra_switchies integer not null check (extra_switchies >= 0),
+  status text not null default 'pending'
+    check (status in ('pending', 'approved', 'declined', 'cancelled')),
+  created_at timestamptz not null default now(),
+  decided_at timestamptz
+);
+
+-- At most one open extension per loan.
+create unique index if not exists extension_requests_one_pending
+  on extension_requests (request_id) where status = 'pending';
+create index if not exists extension_requests_lender_idx on extension_requests (lender_id, status);
+
+-- Deadline reminders are sent at most once per person, loan, kind and
+-- deadline. A changed deadline (extension, new return time) gets fresh ones.
+create unique index if not exists notifications_deadline_once
+  on notifications (user_id, request_id, kind, (data->>'returnDueAt'))
+  where kind in ('due_in_72h', 'due_in_24h', 'overdue', 'loan_overdue');
+
+-- Late returns cost 5 Switchies per full hour past the deadline, charged when
+-- the lender confirms the return and paid to the lender. This records what
+-- was actually charged (capped at the borrower's balance, which can't go
+-- below zero).
+alter table borrow_requests add column if not exists late_fee_switchies integer
+  check (late_fee_switchies is null or late_fee_switchies >= 0);
+
+-- Listing photos, stored in the database (there's no separate file storage).
+-- The browser shrinks them before upload; the API checks type and size.
+-- Lowest position is the cover photo.
+create table if not exists item_images (
+  id bigint generated always as identity primary key,
+  item_id integer not null references items (id),
+  position integer not null default 0,
+  content_type text not null check (content_type in ('image/jpeg', 'image/png', 'image/webp')),
+  data bytea not null check (octet_length(data) between 1 and 2097152),
+  created_at timestamptz not null default now()
+);
+
+create index if not exists item_images_item_idx on item_images (item_id, position, id);
+
+-- A user's saved listings.
+create table if not exists favourites (
+  user_id text not null references users (clerk_id),
+  item_id integer not null references items (id),
+  created_at timestamptz not null default now(),
+  primary key (user_id, item_id)
+);
+
+-- The borrower's preferred return time, e.g. from an event plan. The lender
+-- still sets the actual deadline when approving; this is the suggested default.
+alter table borrow_requests add column if not exists requested_return_at timestamptz;
+
+-- Saved event plans. Requirements (what's needed, how many, which listings
+-- are picked) are plan content, kept as validated JSON. Borrow requests made
+-- from a plan are real borrow_requests rows, linked below; their status is
+-- always read from borrow_requests, never copied.
+create table if not exists event_plans (
+  id bigint generated always as identity primary key,
+  owner_id text not null references users (clerk_id),
+  title text not null check (length(title) between 1 and 120),
+  description text not null default '' check (length(description) <= 1000),
+  prompt text not null default '' check (length(prompt) <= 500),
+  event_date date,
+  start_at timestamptz,
+  return_at timestamptz,
+  -- The owner's local calendar dates for start_at and return_at; requests are booked by date.
+  start_date date,
+  end_date date,
+  requirements jsonb not null default '[]'::jsonb check (jsonb_typeof(requirements) = 'array'),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  check (start_at is null or return_at is null or return_at > start_at),
+  check (start_date is null or end_date is null or end_date >= start_date)
+);
+
+create index if not exists event_plans_owner_idx on event_plans (owner_id, updated_at desc);
+
+create table if not exists event_plan_requests (
+  plan_id bigint not null references event_plans (id) on delete cascade,
+  request_id bigint not null unique references borrow_requests (id),
+  requirement_key text not null,
+  item_id integer not null references items (id),
+  created_at timestamptz not null default now(),
+  primary key (plan_id, request_id)
+);

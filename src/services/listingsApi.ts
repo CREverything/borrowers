@@ -105,3 +105,42 @@ export async function removeListing(getToken: GetToken, id: number) {
   void refreshActivity(getToken);
   return item;
 }
+
+/** Adds a photo (already shrunk) to your listing. Resolves to the updated listing. */
+export async function uploadListingImage(getToken: GetToken, itemId: number, photo: Blob) {
+  const response = await authedFetch(`/api/items/${itemId}/images`, getToken, {
+    method: "POST",
+    headers: { "Content-Type": photo.type || "image/jpeg", Accept: "application/json" },
+    body: photo,
+  });
+  const body = (await response.json().catch(() => null)) as (Item & { error?: string }) | null;
+  if (!response.ok) {
+    throw new ListingError(body?.error ?? "A photo couldn't be uploaded.", response.status);
+  }
+  return body as Item;
+}
+
+/** Removes a photo from your listing. */
+export async function deleteListingImage(getToken: GetToken, itemId: number, imageId: string) {
+  await request<Item>(`/api/items/${itemId}/images/${encodeURIComponent(imageId)}`, getToken, {
+    method: "DELETE",
+  });
+}
+
+/**
+ * Applies photo changes after a listing is saved: removals first (so the
+ * 6-photo limit has room), then uploads in order. Refreshes the marketplace once.
+ */
+export async function savePhotoChanges(
+  getToken: GetToken,
+  itemId: number,
+  changes: { add: Blob[]; removeIds: string[] },
+) {
+  if (changes.add.length === 0 && changes.removeIds.length === 0) return;
+  try {
+    for (const imageId of changes.removeIds) await deleteListingImage(getToken, itemId, imageId);
+    for (const photo of changes.add) await uploadListingImage(getToken, itemId, photo);
+  } finally {
+    void loadItems(true);
+  }
+}

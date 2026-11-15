@@ -1,8 +1,10 @@
-import { Router, type RequestHandler, type Response } from "express";
+import express, { Router, type RequestHandler, type Response } from "express";
 import { authenticatedUserId } from "../auth.ts";
 import { getPool } from "../db.ts";
+import { addImage, deleteImage, getImage, MAX_IMAGE_BYTES, type ImageResult } from "../items/images.ts";
 import {
   createItem,
+  getItemById,
   listActiveItems,
   listItemsByLender,
   removeOwnItem,
@@ -57,7 +59,58 @@ export function createItemsRouter(protect: RequestHandler[]) {
     sendOwned(res, await removeOwnItem(getPool(), authenticatedUserId(res), id));
   });
 
+  /** GET /api/items/:id/images/:imageId: a listing photo. Immutable, so cached hard. */
+  router.get("/:id/images/:imageId", async (req, res) => {
+    const id = parseId(req.params.id);
+    const imageId = String(req.params.imageId);
+    if (id === null || !/^\d{1,19}$/.test(imageId)) return notFound(res);
+    const image = await getImage(getPool(), id, imageId);
+    if (!image) return notFound(res);
+    res.set({
+      "Content-Type": image.content_type,
+      "Cache-Control": "public, max-age=31536000, immutable",
+      "X-Content-Type-Options": "nosniff",
+      "Content-Security-Policy": "default-src 'none'",
+    });
+    res.send(image.data);
+  });
+
+  /**
+   * POST /api/items/:id/images: add a photo (raw JPEG, PNG or WebP bytes) to
+   * your own listing. Responds with the updated listing.
+   */
+  router.post(
+    "/:id/images",
+    ...protect,
+    express.raw({ type: ["image/jpeg", "image/png", "image/webp"], limit: MAX_IMAGE_BYTES }),
+    async (req, res) => {
+      const id = parseId(req.params.id);
+      if (id === null) return notFound(res);
+      if (!Buffer.isBuffer(req.body)) {
+        res.status(415).json({ error: "Photos must be JPEG, PNG or WebP." });
+        return;
+      }
+      await sendImageResult(res, id, await addImage(getPool(), authenticatedUserId(res), id, req.body), 201);
+    },
+  );
+
+  /** DELETE /api/items/:id/images/:imageId: remove a photo from your own listing. */
+  router.delete("/:id/images/:imageId", ...protect, async (req, res) => {
+    const id = parseId(req.params.id);
+    const imageId = String(req.params.imageId);
+    if (id === null || !/^\d{1,19}$/.test(imageId)) return notFound(res);
+    await sendImageResult(res, id, await deleteImage(getPool(), authenticatedUserId(res), id, imageId), 200);
+  });
+
   return router;
+}
+
+async function sendImageResult(res: Response, itemId: number, result: ImageResult, okStatus: number) {
+  if (!result.ok) {
+    res.status(result.status).json({ error: result.error });
+    return;
+  }
+  res.status(okStatus).json(await getItemById(getPool(), itemId));
 }
 
 /** GET /api/my-items: the logged-in user's listings, including hidden ones. */
