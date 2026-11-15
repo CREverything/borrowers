@@ -19,11 +19,18 @@ export type CategoryId =
 
 export type CategoryFilterId = CategoryId | 'all'
 
-export interface User {
+/** An account's public profile, from GET /api/users/:id. */
+export interface PublicProfile {
   id: string
-  displayName: string
+  /** Full name. Only profile pages show it; elsewhere use shortName(). */
+  name: string
+  avatarUrl: string | null
   memberSince: string
+  /** Times they've lent something out (approved or returned requests). */
   itemsLent: number
+  lenderRating: Rating | null
+  borrowerScore: Rating | null
+  listings: Item[]
 }
 
 /** Inclusive date range. */
@@ -147,6 +154,7 @@ export interface Review {
   id: string
   rating: number
   comment: string
+  reviewerId?: string
   reviewerName: string
   createdAt: string
 }

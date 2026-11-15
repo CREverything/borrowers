@@ -6,12 +6,13 @@ import { navigate, paths, type Route } from "../router";
 import { useStartListing } from "./LoginPrompt";
 import SwitchiesInfo from "./SwitchiesInfo";
 import UserMenu from "./UserMenu";
-import { useNotifications } from "../hooks/useRequests";
+import { useActivity, useNotifications } from "../hooks/useRequests";
 
 export default function Header({ route }: { route: Route }) {
   const startListing = useStartListing();
   const { status, user } = useAuthState();
   const unread = useNotifications().unreadCount;
+  const pending = useActivity().summary?.pendingApprovals ?? 0;
   const onAuthPage = route.name === "login" || route.name === "signup";
 
   const links = [
@@ -74,15 +75,23 @@ export default function Header({ route }: { route: Route }) {
             <a
               className={`bell${route.name === "notifications" ? " bell--active" : ""}`}
               href={paths.notifications}
-              aria-label={
-                unread ? `Notifications, ${unread} new` : "Notifications"
-              }
+              aria-label={[
+                "Notifications",
+                unread ? `${unread} new` : "",
+                pending ? `${pending} ${pending === 1 ? "request needs" : "requests need"} your approval` : "",
+              ]
+                .filter(Boolean)
+                .join(", ")}
             >
               <Bell size={20} aria-hidden="true" />
               {unread > 0 && (
                 <span className="bell__count" aria-hidden="true">
                   {unread > 9 ? "9+" : unread}
                 </span>
+              )}
+              {/* A quiet reminder that requests are waiting, once they've been read. */}
+              {unread === 0 && pending > 0 && (
+                <span className="bell__pending" aria-hidden="true" />
               )}
             </a>
           )}

@@ -1,6 +1,6 @@
 import type { Pool, PoolClient } from "pg";
 import { notify, type NotificationKind } from "../notifications/repository.ts";
-import { firstNameOnly } from "../users/profiles.ts";
+import { fullName, shortName } from "../users/profiles.ts";
 import { daysInclusive, type BorrowRequestInput, type EventRequestInput } from "./validation.ts";
 
 export type RequestStatus = "pending" | "approved" | "declined" | "cancelled" | "returned";
@@ -119,9 +119,9 @@ const toRequest = (row: RequestRow): BorrowRequest => ({
   itemId: row.item_id,
   itemTitle: row.item_title,
   lenderId: row.lender_id,
-  lenderName: firstNameOnly(row.lender_name),
+  lenderName: shortName(row.lender_name),
   borrowerId: row.borrower_id,
-  borrowerName: firstNameOnly(row.borrower_name),
+  borrowerName: shortName(row.borrower_name),
   startDate: row.start_date,
   endDate: row.end_date,
   days: row.days,
@@ -541,7 +541,7 @@ export async function getAccount(pool: Pool, userId: string) {
   const row = result.rows[0];
   return {
     userId,
-    displayName: firstNameOnly(row?.display_name),
+    displayName: fullName(row?.display_name),
     switchiesBalance: row?.switchies_balance ?? 0,
     /** The average score lenders have given this user as a borrower. */
     borrowerScore:

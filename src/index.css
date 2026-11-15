@@ -222,10 +222,16 @@ button {
 }
 
 /* Header */
-.header {
+/* The header and activity bar stick to the top together. */
+.site-top {
   position: sticky;
   top: 0;
   z-index: 10;
+}
+
+.header {
+  position: relative;
+  z-index: 1;
   background: rgba(255, 248, 240, 0.92);
   backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--border);
@@ -562,7 +568,7 @@ button {
 .browse {
   padding-top: 26px;
   padding-bottom: 80px;
-  scroll-margin-top: 80px;
+  scroll-margin-top: calc(80px + var(--activity-offset, 0px));
 }
 
 .categories {
@@ -1206,7 +1212,8 @@ button {
 
 .booking {
   position: sticky;
-  top: 96px;
+  top: calc(96px + var(--activity-offset, 0px));
+  transition: top 0.25s ease;
   padding: 22px;
   border-radius: 20px;
   background: var(--surface);
@@ -2632,7 +2639,8 @@ button {
 
 .listing-form__preview {
   position: sticky;
-  top: 96px;
+  top: calc(96px + var(--activity-offset, 0px));
+  transition: top 0.25s ease;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -3813,5 +3821,499 @@ button {
   .match__price {
     margin-left: 30px;
     width: 100%;
+  }
+}
+
+/* Notification pop-ups */
+/* Inside the sticky .site-top, so it always sits below the header and activity bar. */
+.toasts {
+  position: absolute;
+  top: calc(100% + var(--activity-offset, 0px) + 12px);
+  right: 20px;
+  z-index: 2;
+  display: flex;
+  /* Newest on top. */
+  flex-direction: column-reverse;
+  transition: top 0.2s ease;
+  gap: 10px;
+  width: min(360px, calc(100vw - 32px));
+  pointer-events: none;
+}
+
+.toast {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 12px 8px 16px 12px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-hover);
+  pointer-events: auto;
+  animation: toast-in 0.2s ease-out;
+}
+
+.toast__body {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--text);
+}
+
+.toast__text {
+  padding-top: 7px;
+  overflow-wrap: anywhere;
+}
+
+.toast__body:hover .toast__text {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.toast__close {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.toast__close:hover {
+  background: var(--border);
+  color: var(--text);
+}
+
+.toast__progress {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 4px;
+  width: 100%;
+  background: var(--orange);
+  transform-origin: left center;
+  animation-name: toast-progress;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+
+/* Hovering or tabbing into a toast pauses its countdown. */
+.toast:hover .toast__progress,
+.toast:focus-within .toast__progress {
+  animation-play-state: paused;
+}
+
+@keyframes toast-progress {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast {
+    animation: none;
+  }
+
+  .toasts {
+    transition: none;
+  }
+}
+
+@media (max-width: 600px) {
+  .toasts {
+    right: 16px;
+  }
+}
+
+/* Public profiles */
+.profile-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin: 0 0 32px;
+}
+
+.profile-stats__tile {
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.profile-stats dt {
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.profile-stats dd {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+}
+
+.profile-stats strong {
+  font-size: 26px;
+  line-height: 1.1;
+}
+
+@media (max-width: 600px) {
+  .profile-stats {
+    grid-template-columns: 1fr;
+  }
+}
+
+.user-listings h2 {
+  margin-bottom: 16px;
+}
+
+.profile__public-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+/* Names that open someone's profile */
+a.lender {
+  color: inherit;
+  border-radius: 10px;
+}
+
+a.lender:hover .lender__name,
+.card__lender:hover,
+.review__author:hover,
+.person-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.card__lender {
+  position: relative;
+  color: inherit;
+}
+
+.review__author,
+.person-link {
+  font-weight: 600;
+  color: var(--indigo);
+}
+
+/*
+ * Activity bar. Hangs just below the header inside .site-top and condenses
+ * to a thinner strip once the page is scrolled. .activity-spacer keeps the
+ * full bar's room at the top of the page, so the content never moves.
+ */
+.activity-slot {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+}
+
+.activity,
+.activity__inner,
+.activity__stat,
+.activity__stat svg,
+.activity__more svg {
+  transition-duration: 0.2s;
+  transition-timing-function: ease;
+}
+
+.activity {
+  transition-property: font-size;
+}
+
+.activity__inner {
+  transition-property: min-height;
+}
+
+.activity__stat {
+  transition-property: background, border-color, padding, border-radius;
+}
+
+.activity__stat svg,
+.activity__more svg {
+  width: 16px;
+  height: 16px;
+  transition-property: width, height;
+}
+
+/*
+ * Condensed: a thin strip with just the three counts. Stats fill its full
+ * height as square-edged blocks, so the highlight runs edge to edge.
+ */
+.activity-slot--condensed .activity {
+  font-size: 12px;
+  box-shadow: 0 2px 8px rgba(34, 27, 56, 0.06);
+}
+
+.activity-slot--condensed .activity__inner {
+  min-height: 26px;
+  align-items: stretch;
+}
+
+.activity-slot--condensed .activity__panel,
+.activity-slot--condensed .activity__stats {
+  align-items: stretch;
+  gap: 0;
+}
+
+.activity-slot--condensed .activity__stats li {
+  display: flex;
+}
+
+.activity-slot--condensed .activity__stat {
+  padding: 0 12px;
+  border-width: 0 1px;
+  border-radius: 0;
+}
+
+.activity-slot--condensed .activity__stat svg {
+  width: 13px;
+  height: 13px;
+}
+
+.activity-slot--condensed .activity__more {
+  display: none;
+}
+
+.activity-spacer {
+  height: var(--activity-height, 0px);
+}
+
+.activity {
+  --lavender-faint: #f4f1f9;
+  background: var(--lavender-faint);
+  border-bottom: 1px solid var(--lavender-soft);
+  color: var(--indigo);
+  font-size: 14px;
+}
+
+.activity__inner {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+}
+
+.activity__panel {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.activity__stats {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.activity__stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  color: var(--indigo);
+  white-space: nowrap;
+}
+
+.activity__stat svg {
+  color: var(--text-muted);
+}
+
+.activity__stat strong {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.activity__stat:hover {
+  background: var(--lavender-soft);
+}
+
+.activity__stat--alert {
+  background: var(--jasmine-soft);
+  border-color: var(--jasmine);
+}
+
+.activity__stat--alert svg {
+  color: var(--limited-text);
+}
+
+.activity__stat--alert:hover {
+  background: var(--jasmine);
+}
+
+.activity__more {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  color: var(--text-muted);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.activity__more:hover {
+  color: var(--indigo);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.activity__error {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.activity__toggle {
+  display: none;
+}
+
+/* A dot on the bell while requests wait for approval and nothing is unread. */
+.bell__pending {
+  position: absolute;
+  top: 7px;
+  right: 8px;
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--floral);
+  border-radius: 50%;
+  background: var(--jasmine);
+}
+
+/* Room for the sticky header (and the bar, when showing) when a link jumps to a section. */
+.request-section {
+  scroll-margin-top: calc(96px + var(--activity-offset, 0px));
+}
+
+/* Small screens: a one-line summary that expands in place. */
+@media (max-width: 720px) {
+  .activity__inner {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .activity__toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--indigo);
+    font-weight: 600;
+    text-align: left;
+  }
+
+  .activity__pill {
+    padding: 2px 10px;
+    border: 1px solid var(--jasmine);
+    border-radius: 999px;
+    background: var(--jasmine-soft);
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .activity__chevron {
+    margin-left: auto;
+    transition: transform 0.2s;
+  }
+
+  .activity__inner--open .activity__chevron {
+    transform: rotate(180deg);
+  }
+
+  /* Condensed on mobile: just the summary line, slimmer; the panel waits
+     until the bar expands again near the top. */
+  .activity-slot--condensed .activity__toggle {
+    min-height: 26px;
+  }
+
+  .activity-slot--condensed .activity__pill {
+    padding: 0 8px;
+    font-size: 11px;
+  }
+
+  .activity-slot--condensed .activity__inner--open .activity__panel {
+    display: none;
+  }
+
+  .activity-slot--condensed .activity__inner--open .activity__chevron {
+    transform: none;
+  }
+
+  .activity__panel {
+    display: none;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+    padding-bottom: 12px;
+  }
+
+  .activity__inner--open .activity__panel {
+    display: flex;
+  }
+
+  .activity__stats {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+  }
+
+  .activity__stat {
+    display: flex;
+    padding: 8px 12px;
+    border-radius: 10px;
+  }
+
+  .activity__more {
+    margin-left: 0;
+    padding: 8px 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .activity,
+  .activity__inner,
+  .activity__stat svg,
+  .activity__more svg,
+  .activity__chevron,
+  .activity__stat,
+  .booking,
+  .listing-form__preview {
+    transition: none;
   }
 }

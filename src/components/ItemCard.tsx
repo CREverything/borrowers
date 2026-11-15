@@ -65,7 +65,10 @@ export default function ItemCard({ item }: { item: Item }) {
         <p className="card__meta">
           <MapPin size={14} aria-hidden="true" />
           <span className="card__meta-text">
-            {item.location} · {lenderNameOf(item)}
+            {item.location} ·{" "}
+            <a className="card__lender" href={paths.user(item.lenderId)} onClick={stop}>
+              {lenderNameOf(item)}
+            </a>
           </span>
         </p>
 

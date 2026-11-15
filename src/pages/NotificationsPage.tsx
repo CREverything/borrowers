@@ -1,35 +1,14 @@
-import {
-  Bell,
-  CalendarClock,
-  CircleCheckBig,
-  CircleX,
-  Inbox,
-  PackageCheck,
-  Star,
-  Undo2,
-  type LucideIcon,
-} from "lucide-react";
+import { Bell } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAuthState } from "../auth/AuthContext";
 import LoginRequired from "../components/LoginRequired";
 import { useNotifications } from "../hooks/useRequests";
 import { formatDateTime, formatRelative } from "../lib/dates";
-import { describeNotification } from "../lib/notificationText";
+import { describeNotification, notificationIcons as icons } from "../lib/notificationText";
 import { markAllRead } from "../services/notificationStore";
-import type { NotificationKind } from "../types";
 
 type Filter = "all" | "borrower" | "lender";
 
-const icons: Record<NotificationKind, LucideIcon> = {
-  request_received: Inbox,
-  request_cancelled: Undo2,
-  request_approved: CircleCheckBig,
-  request_declined: CircleX,
-  return_time_changed: CalendarClock,
-  item_returned: PackageCheck,
-  borrower_rated: Star,
-  review_received: Star,
-};
 
 export default function NotificationsPage() {
   const { status } = useAuthState();

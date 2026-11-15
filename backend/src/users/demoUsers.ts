@@ -4,13 +4,13 @@
  * account is ever given a demo listing.
  */
 export const demoUsers: { clerkId: string; displayName: string }[] = [
-  { clerkId: "u-maya", displayName: "Maya" },
-  { clerkId: "u-jordan", displayName: "Jordan" },
-  { clerkId: "u-priya", displayName: "Priya" },
-  { clerkId: "u-sam", displayName: "Sam" },
-  { clerkId: "u-leo", displayName: "Leo" },
-  { clerkId: "u-aisha", displayName: "Aisha" },
-  { clerkId: "u-chris", displayName: "Chris" },
-  { clerkId: "u-nina", displayName: "Nina" },
-  { clerkId: "u-omar", displayName: "Omar" },
+  { clerkId: "u-maya", displayName: "Maya R." },
+  { clerkId: "u-jordan", displayName: "Jordan K." },
+  { clerkId: "u-priya", displayName: "Priya S." },
+  { clerkId: "u-sam", displayName: "Sam T." },
+  { clerkId: "u-leo", displayName: "Leo M." },
+  { clerkId: "u-aisha", displayName: "Aisha B." },
+  { clerkId: "u-chris", displayName: "Chris D." },
+  { clerkId: "u-nina", displayName: "Nina W." },
+  { clerkId: "u-omar", displayName: "Omar F." },
 ];

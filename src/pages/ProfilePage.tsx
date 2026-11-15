@@ -1,9 +1,10 @@
-import { Coins, LogIn, Mail, ShieldCheck, ShieldQuestion } from "lucide-react";
+import { Coins, ExternalLink, LogIn, Mail, ShieldCheck, ShieldQuestion } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAuthState, type AuthUser } from "../auth/AuthContext";
 import { ProfileAvatar } from "../components/UserMenu";
-import { Stars } from "../components/StarRating";
-import { useBalance, useBorrowerScore } from "../hooks/useRequests";
+import { useBalance, useRequests } from "../hooks/useRequests";
+import { usePublicProfile } from "../hooks/usePublicProfile";
+import { ProfileStats } from "./UserPage";
 import { navigate, paths } from "../router";
 import { authedFetch } from "../services/api";
 
@@ -63,7 +64,9 @@ function Profile({ user }: { user: AuthUser }) {
   const { signOut, openAccountSettings } = useAuthState();
   const since = memberSince(user.createdAt);
   const balance = useBalance();
-  const score = useBorrowerScore();
+  // Refetch when a lend is approved or returned, so "items lent" stays current.
+  const lentKey = useRequests().incoming.filter((r) => r.status === "approved" || r.status === "returned").length;
+  const publicProfile = usePublicProfile(user.id, lentKey);
 
   return (
     <div className="container page page--narrow">
@@ -78,25 +81,16 @@ function Profile({ user }: { user: AuthUser }) {
             </p>
           )}
           {since && <p className="muted small">Member since {since}</p>}
-          <p className="profile__score">
-            {score ? (
-              <>
-                <Stars value={score.average} />
-                <strong>{score.average.toFixed(1)}</strong>
-                <span className="muted small">
-                  borrower rating from {score.count}{" "}
-                  {score.count === 1 ? "lender" : "lenders"}
-                </span>
-              </>
-            ) : (
-              <span className="muted small">
-                No borrower rating yet. Lenders can score you after you return
-                something.
-              </span>
-            )}
+          <p className="small">
+            <a className="link profile__public-link" href={paths.user(user.id)}>
+              <ExternalLink size={14} aria-hidden="true" />
+              View your public profile
+            </a>
           </p>
         </div>
       </header>
+
+      {publicProfile.status === "ready" && <ProfileStats profile={publicProfile.profile} />}
 
       <div className="profile__panels">
         <section className="panel">

@@ -29,6 +29,49 @@ export function subscribeToNotifications(listener: () => void) {
   };
 }
 
+/**
+ * Pop-up toasts for notifications that arrive while the app is open. The
+ * first load for a user only records what already exists, so old
+ * notifications never pop up. Toasts don't mark anything read; they stay on
+ * the notifications page.
+ */
+const MAX_TOASTS = 3;
+let toasts: AppNotification[] = [];
+let seenIds: { userId: string; ids: Set<string> } | null = null;
+const toastListeners = new Set<() => void>();
+
+function setToasts(next: AppNotification[]) {
+  toasts = next;
+  toastListeners.forEach((listener) => listener());
+}
+
+export const getToasts = () => toasts;
+
+export function subscribeToToasts(listener: () => void) {
+  toastListeners.add(listener);
+  return () => {
+    toastListeners.delete(listener);
+  };
+}
+
+export const dismissToast = (id: string) => setToasts(toasts.filter((t) => t.id !== id));
+
+export const clearToasts = () => {
+  if (toasts.length) setToasts([]);
+};
+
+function queueToasts(userId: string, notifications: AppNotification[]) {
+  if (seenIds?.userId !== userId) {
+    seenIds = { userId, ids: new Set(notifications.map((n) => n.id)) };
+    return;
+  }
+  const fresh = notifications.filter((n) => !seenIds!.ids.has(n.id) && !n.read);
+  notifications.forEach((n) => seenIds!.ids.add(n.id));
+  if (fresh.length === 0) return;
+  // Newest last, so the stack reads top to bottom in arrival order.
+  setToasts([...toasts, ...fresh.reverse()].slice(-MAX_TOASTS));
+}
+
 // Bumped whenever notifications are marked read, so a load that started
 // earlier can't bring back the old unread count when it finishes.
 let readVersion = 0;
@@ -41,7 +84,9 @@ export async function loadNotifications(userId: string, getToken: GetToken) {
       "/api/notifications",
       getToken,
     );
-    if (state.userId === userId && startedAt === readVersion) {
+    if (state.userId !== userId) return;
+    queueToasts(userId, body.notifications);
+    if (startedAt === readVersion) {
       setState({ userId, loaded: true, ...body });
     }
   } catch (error) {
@@ -67,4 +112,8 @@ export async function markAllRead(getToken: GetToken) {
   }
 }
 
-export const resetNotifications = () => setState(empty);
+export function resetNotifications() {
+  setState(empty);
+  seenIds = null;
+  setToasts([]);
+}

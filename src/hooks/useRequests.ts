@@ -7,10 +7,18 @@ import {
   subscribeToAccount,
 } from "../services/accountStore";
 import {
+  getActivityState,
+  refreshActivity,
+  resetActivity,
+  subscribeToActivity,
+} from "../services/activityStore";
+import {
   getNotificationState,
+  getToasts,
   loadNotifications,
   resetNotifications,
   subscribeToNotifications,
+  subscribeToToasts,
 } from "../services/notificationStore";
 import {
   getRequestState,
@@ -20,7 +28,7 @@ import {
 } from "../services/requestStore";
 
 /** How often to check for new notifications while the tab is open. */
-const POLL_MS = 60_000;
+const POLL_MS = 20_000;
 
 /**
  * Keeps the request, balance and notification stores in step with who is
@@ -35,19 +43,24 @@ export function useAccountSync() {
       resetRequests();
       resetAccount();
       resetNotifications();
+      resetActivity();
       return;
     }
     const refresh = () => {
       void loadRequests(userId, getToken);
       void refreshAccount(getToken, userId);
       void loadNotifications(userId, getToken);
+      void refreshActivity(getToken, userId);
     };
     refresh();
     // Other people's actions (approvals, returns, reviews) change things, so
-    // re-check when the tab comes back into focus and every minute while open.
+    // re-check when the tab comes back into focus and every 20 seconds while open.
     window.addEventListener("focus", refresh);
     const timer = window.setInterval(() => {
-      if (document.visibilityState === "visible") void loadNotifications(userId, getToken);
+      if (document.visibilityState !== "visible") return;
+      void loadNotifications(userId, getToken);
+      // New incoming requests arrive without any action here, so poll the counts too.
+      void refreshActivity(getToken, userId);
     }, POLL_MS);
     return () => {
       window.removeEventListener("focus", refresh);
@@ -75,4 +88,14 @@ export function useBorrowerScore() {
 /** The user's notifications and unread count. */
 export function useNotifications() {
   return useSyncExternalStore(subscribeToNotifications, getNotificationState);
+}
+
+/** Notifications that just arrived, to show as pop-ups. */
+export function useToasts() {
+  return useSyncExternalStore(subscribeToToasts, getToasts);
+}
+
+/** The activity bar's counts and load state. */
+export function useActivity() {
+  return useSyncExternalStore(subscribeToActivity, getActivityState);
 }

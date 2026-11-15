@@ -1,7 +1,7 @@
 import { clerkMiddleware, createClerkClient, getAuth } from "@clerk/express";
 import type { RequestHandler, Response } from "express";
 import type { AuthConfig } from "./config.ts";
-import { firstNameOnly, type FetchProfile } from "./users/profiles.ts";
+import { fullName, type FetchProfile } from "./users/profiles.ts";
 
 /**
  * Middleware chain for protected endpoints. Clerk verifies the session token
@@ -58,7 +58,7 @@ export function createProfileFetcher(auth: AuthConfig | null): FetchProfile {
   return async (clerkId) => {
     const user = await clerk.users.getUser(clerkId);
     return {
-      displayName: firstNameOnly(user.firstName),
+      displayName: fullName([user.firstName, user.lastName].filter(Boolean).join(" ")),
       avatarUrl: user.hasImage ? user.imageUrl : null,
     };
   };

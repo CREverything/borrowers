@@ -1,5 +1,6 @@
 import type { CategoryId, Item, ItemCondition } from "../types";
 import { authedFetch } from "./api";
+import { refreshActivity } from "./activityStore";
 import { loadItems } from "./itemsStore";
 
 /**
@@ -80,6 +81,7 @@ export async function createListing(getToken: GetToken, fields: ListingFields) {
     body: JSON.stringify(fields),
   });
   void loadItems(true); // Show it in the marketplace straight away.
+  void refreshActivity(getToken);
   return item;
 }
 
@@ -93,11 +95,13 @@ export async function updateListing(
     body: JSON.stringify(changes),
   });
   void loadItems(true);
+  void refreshActivity(getToken);
   return item;
 }
 
 export async function removeListing(getToken: GetToken, id: number) {
   const item = await request<Item>(`/api/items/${id}`, getToken, { method: "DELETE" });
   void loadItems(true);
+  void refreshActivity(getToken);
   return item;
 }

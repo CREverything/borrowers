@@ -23,10 +23,13 @@ export interface MigrationReport {
 export async function runMigrations(client: PoolClient): Promise<MigrationReport> {
   await client.query(await readFile(schemaPath, "utf8"));
 
+  // Demo profiles saved with only a first name get their last initial; any
+  // other edit is left alone.
   const demo = await client.query(
     `insert into users (clerk_id, display_name)
      select * from unnest($1::text[], $2::text[])
-     on conflict (clerk_id) do nothing`,
+     on conflict (clerk_id) do update set display_name = excluded.display_name
+     where users.display_name in ('', split_part(excluded.display_name, ' ', 1))`,
     [demoUsers.map((u) => u.clerkId), demoUsers.map((u) => u.displayName)],
   );
 

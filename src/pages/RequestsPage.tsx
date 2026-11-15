@@ -10,12 +10,12 @@ import {
   ShoppingBag,
   Star,
 } from "lucide-react";
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { useAuthState } from "../auth/AuthContext";
 import Dialog from "../components/Dialog";
 import ItemIllustration from "../components/ItemIllustration";
 import { StarInput, Stars } from "../components/StarRating";
-import { firstNameOnly, getUserName, lenderNameOf } from "../data/users";
+import { shortName, getUserName, lenderNameOf } from "../data/users";
 import { useItems } from "../hooks/useItems";
 import {
   formatDateTime,
@@ -23,9 +23,11 @@ import {
   isoToLocalInput,
   localDateTimeInput,
   localInputToISO,
+  todayISO,
 } from "../lib/dates";
 import { useRequests } from "../hooks/useRequests";
-import { navigate, paths } from "../router";
+import { navigate, paths, type LendingSection } from "../router";
+import { scrollToSection } from "../lib/scroll";
 import {
   approveRequest,
   cancelBorrowRequest,
@@ -60,10 +62,19 @@ function StatusPill({
   return <span className={`status status--${status}`}>{label}</span>;
 }
 
-export default function RequestsPage({ tab }: { tab: Tab }) {
+export default function RequestsPage({
+  tab,
+  section = null,
+}: {
+  tab: Tab;
+  /** Part of the lending tab to scroll to, from the activity bar. */
+  section?: LendingSection | null;
+}) {
   const { status, user } = useAuthState();
 
-  if (status === "signed-in" && user) return <MyRequests userId={user.id} tab={tab} />;
+  if (status === "signed-in" && user) {
+    return <MyRequests userId={user.id} tab={tab} section={section} />;
+  }
 
   return (
     <div className="container page page--narrow">
@@ -114,7 +125,15 @@ type OpenDialog =
   | { type: "approve" | "return-time" | "returned" | "rate" | "review"; request: BorrowRequest }
   | null;
 
-function MyRequests({ userId, tab }: { userId: string; tab: Tab }) {
+function MyRequests({
+  userId,
+  tab,
+  section,
+}: {
+  userId: string;
+  tab: Tab;
+  section: LendingSection | null;
+}) {
   const { getToken } = useAuthState();
   const { status, borrowRequests, eventRequests, incoming } = useRequests();
   const pendingIncoming = incoming.filter((r) => r.status === "pending").length;
@@ -202,6 +221,7 @@ function MyRequests({ userId, tab }: { userId: string; tab: Tab }) {
         />
       ) : (
         <Lending
+          section={section}
           incoming={incoming}
           busy={busy}
           onOpen={(type, request) => setDialog({ type, request })}
@@ -229,7 +249,7 @@ function MyRequests({ userId, tab }: { userId: string; tab: Tab }) {
         <ScoreDialog
           title={`Mark ${titleOf(dialog.request)} as returned`}
           intro="Got it back early? That's fine. You can also score the borrower now or later."
-          ratingLabel={`Score ${firstNameOnly(dialog.request.borrowerName) || "the borrower"} (optional)`}
+          ratingLabel={`Score ${shortName(dialog.request.borrowerName) || "the borrower"} (optional)`}
           optionalRating
           submitLabel="Mark as returned"
           onClose={close}
@@ -238,7 +258,7 @@ function MyRequests({ userId, tab }: { userId: string; tab: Tab }) {
       )}
       {dialog?.type === "rate" && (
         <ScoreDialog
-          title={`Score ${firstNameOnly(dialog.request.borrowerName) || "the borrower"}`}
+          title={`Score ${shortName(dialog.request.borrowerName) || "the borrower"}`}
           intro={`How was lending ${titleOf(dialog.request)} to them?`}
           ratingLabel="Your score"
           submitLabel="Save score"
@@ -412,16 +432,24 @@ function Borrowing({
 }
 
 function Lending({
+  section,
   incoming,
   busy,
   onOpen,
   onDecline,
 }: {
+  section: LendingSection | null;
   incoming: BorrowRequest[];
   busy: string | null;
   onOpen: (type: "approve" | "return-time" | "returned" | "rate", request: BorrowRequest) => void;
   onDecline: (id: string) => void;
 }) {
+  // Jump to the section a link asked for, once its rows are on the page.
+  const hasRows = incoming.length > 0;
+  useEffect(() => {
+    if (section && hasRows) requestAnimationFrame(() => scrollToSection(`lending-${section}`));
+  }, [section, hasRows]);
+
   if (incoming.length === 0) {
     return (
       <div className="empty">
@@ -438,13 +466,17 @@ function Lending({
   }
 
   const waiting = incoming.filter((r) => r.status === "pending");
-  const onLoan = incoming.filter((r) => r.status === "approved");
+  // Approved loans whose dates have started count as out; later ones are just booked.
+  const today = todayISO();
+  const approved = incoming.filter((r) => r.status === "approved");
+  const onLoan = approved.filter((r) => r.startDate <= today);
+  const upcoming = approved.filter((r) => r.startDate > today);
   const past = incoming.filter((r) => r.status !== "pending" && r.status !== "approved");
 
   return (
     <>
       {waiting.length > 0 && (
-        <section className="request-section">
+        <section className="request-section" id="lending-waiting">
           <h2>Waiting for you</h2>
           <p className="muted small request-section__note">
             Approving books those dates, moves the Switchies to you, and lets
@@ -474,32 +506,38 @@ function Lending({
           </ul>
         </section>
       )}
-      {onLoan.length > 0 && (
-        <section className="request-section">
-          <h2>Out on loan</h2>
-          <ul className="request-list">
-            {onLoan.map((request) => (
-              <RequestRow key={request.id} request={request} asLender>
-                <div className="request-row__actions">
-                  <button
-                    className="btn btn--primary btn--sm"
-                    onClick={() => onOpen("returned", request)}
-                  >
-                    <CircleCheckBig size={14} aria-hidden="true" />
-                    Mark as returned
-                  </button>
-                  <button
-                    className="btn btn--secondary btn--sm"
-                    onClick={() => onOpen("return-time", request)}
-                  >
-                    <Clock size={14} aria-hidden="true" />
-                    Change return time
-                  </button>
-                </div>
-              </RequestRow>
-            ))}
-          </ul>
-        </section>
+      {[
+        { id: "on-loan", title: "Out on loan", rows: onLoan },
+        { id: "upcoming", title: "Coming up", rows: upcoming },
+      ].map(
+        (group) =>
+          group.rows.length > 0 && (
+            <section key={group.id} className="request-section" id={`lending-${group.id}`}>
+              <h2>{group.title}</h2>
+              <ul className="request-list">
+                {group.rows.map((request) => (
+                  <RequestRow key={request.id} request={request} asLender>
+                    <div className="request-row__actions">
+                      <button
+                        className="btn btn--primary btn--sm"
+                        onClick={() => onOpen("returned", request)}
+                      >
+                        <CircleCheckBig size={14} aria-hidden="true" />
+                        Mark as returned
+                      </button>
+                      <button
+                        className="btn btn--secondary btn--sm"
+                        onClick={() => onOpen("return-time", request)}
+                      >
+                        <Clock size={14} aria-hidden="true" />
+                        Change return time
+                      </button>
+                    </div>
+                  </RequestRow>
+                ))}
+              </ul>
+            </section>
+          ),
       )}
       {past.length > 0 && (
         <section className="request-section">
@@ -538,9 +576,21 @@ function RequestRow({
   const { getItem } = useItems();
   const item = getItem(request.itemId);
   const title = item?.title ?? request.itemTitle ?? "Removed item";
-  const person = asLender
-    ? `by ${firstNameOnly(request.borrowerName) || "a student"}`
-    : `from ${firstNameOnly(request.lenderName) || (item ? lenderNameOf(item) : getUserName(request.lenderId))}`;
+  const person = asLender ? (
+    <>
+      by{" "}
+      <a className="person-link" href={paths.user(request.borrowerId)}>
+        {shortName(request.borrowerName) || "a student"}
+      </a>
+    </>
+  ) : (
+    <>
+      from{" "}
+      <a className="person-link" href={paths.user(request.lenderId)}>
+        {shortName(request.lenderName) || (item ? lenderNameOf(item) : getUserName(request.lenderId))}
+      </a>
+    </>
+  );
   const overdue = isOverdue(request);
   return (
     <li className="request-row">
@@ -563,7 +613,7 @@ function RequestRow({
         <Timeline request={request} />
         {request.borrowerRating !== null && request.borrowerRating !== undefined && (
           <span className="request-row__given">
-            {asLender ? "You gave" : `${firstNameOnly(request.lenderName) || "The lender"} gave you`}{" "}
+            {asLender ? "You gave" : `${shortName(request.lenderName) || "The lender"} gave you`}{" "}
             <Stars value={request.borrowerRating} size={12} />
             {request.borrowerRatingComment && (
               <>
@@ -646,7 +696,7 @@ function ReturnTimeDialog({
     >
       <form className="dialog-form" onSubmit={submit} noValidate>
         <p className="muted">
-          {firstNameOnly(request.borrowerName) || "The borrower"} has it{" "}
+          {shortName(request.borrowerName) || "The borrower"} has it{" "}
           {formatRange({ start: request.startDate, end: request.endDate })}.
           {mode === "approve" &&
             ` You'll receive ${request.totalSwitchies} Switchies when you approve.`}

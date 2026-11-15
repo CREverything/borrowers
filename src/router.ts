@@ -12,8 +12,9 @@ export type Route =
   | { name: "item"; id: number }
   | { name: "plan"; query: string }
   | { name: "switchies" }
-  | { name: "requests"; tab: "borrowing" | "lending" }
+  | { name: "requests"; tab: "borrowing" | "lending"; section: LendingSection | null }
   | { name: "profile" }
+  | { name: "user"; id: string }
   | { name: "lend" }
   | { name: "notifications" }
   | { name: "my-listings"; createdId: number | null }
@@ -21,6 +22,9 @@ export type Route =
   /** returnTo is null when the URL has no ?return= (one of Clerk's own steps). */
   | { name: "login"; returnTo: string | null }
   | { name: "signup"; returnTo: string | null };
+
+/** Parts of the lending tab that links can jump to. */
+export type LendingSection = "waiting" | "on-loan";
 
 const HOME_HASH = "#/";
 
@@ -34,7 +38,9 @@ export const paths = {
   switchies: "/#/switchies",
   requests: "/#/requests",
   lendingRequests: "/#/requests?tab=lending",
+  lendingSection: (section: LendingSection) => `/#/requests?tab=lending&section=${section}`,
   profile: "/#/profile",
+  user: (id: string) => `/#/user/${encodeURIComponent(id)}`,
   lend: "/#/lend",
   notifications: "/#/notifications",
   myListings: (createdId?: number) =>
@@ -109,13 +115,28 @@ export function parseHash(hash: string): Route {
       };
     case "switchies":
       return { name: "switchies" };
-    case "requests":
+    case "requests": {
+      const params = new URLSearchParams(search);
+      const tab = params.get("tab") === "lending" ? "lending" : "borrowing";
+      const section = params.get("section");
       return {
         name: "requests",
-        tab: new URLSearchParams(search).get("tab") === "lending" ? "lending" : "borrowing",
+        tab,
+        section: tab === "lending" && (section === "waiting" || section === "on-loan") ? section : null,
       };
+    }
     case "profile":
       return { name: "profile" };
+    case "user": {
+      let id = "";
+      try {
+        id = decodeURIComponent(second ?? "");
+      } catch {
+        // Malformed escape; falls through to home.
+      }
+      if (id) return { name: "user", id };
+      break;
+    }
     case "lend":
       return { name: "lend" };
     case "notifications":

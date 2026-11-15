@@ -2,7 +2,7 @@ import { ArrowLeft } from "lucide-react";
 import { useState } from "react";
 import { useAuthState } from "../auth/AuthContext";
 import ListingForm, { emptyDraft } from "../components/ListingForm";
-import { firstNameOnly } from "../data/users";
+import { shortName } from "../data/users";
 import LoginRequired from "../components/LoginRequired";
 import { navigate, paths } from "../router";
 import {
@@ -11,8 +11,8 @@ import {
   type FieldErrors,
 } from "../services/listingsApi";
 
-/** Keep the lender's name to their first name wherever it appears. */
-export const cardName = (name: string) => firstNameOnly(name);
+/** Listings show the lender's first name and last initial. */
+export const cardName = (name: string) => shortName(name);
 
 export default function LendPage() {
   const { status, user, getToken } = useAuthState();

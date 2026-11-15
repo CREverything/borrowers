@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { LOGIN_PATH, navigate, SIGNUP_PATH } from "../router";
-import { firstNameOnly } from "../data/users";
+import { fullName } from "../data/users";
 import { clerkAppearance } from "./appearance";
 import { clerkLocalization } from "./localization";
 
@@ -109,8 +109,8 @@ function ClerkBridge({ children }: { children: ReactNode }) {
         ? {
             id: user.id,
             name:
-              firstNameOnly(user.firstName) ||
-              firstNameOnly(user.fullName) ||
+              fullName(user.fullName) ||
+              fullName(user.firstName) ||
               "Borrower",
             email,
             imageUrl: user.hasImage ? user.imageUrl : null,

@@ -20,7 +20,7 @@ async function main() {
               (select count(*) from items where status = 'active') as active`,
     );
     console.log(
-      `Migration complete. Added ${report.demoProfilesAdded} demo and ${report.placeholderProfilesAdded} placeholder profiles.`,
+      `Migration complete. Added or renamed ${report.demoProfilesAdded} demo and ${report.placeholderProfilesAdded} placeholder profiles.`,
     );
     console.log(`Now: ${rows[0].users} users, ${rows[0].items} items (${rows[0].active} active).`);
   } catch (error) {

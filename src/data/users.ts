@@ -1,30 +1,44 @@
-import type { User } from '../types'
-
-export const users: User[] = [
-  { id: 'u-maya', displayName: 'Maya', memberSince: 'Fall 2024', itemsLent: 41 },
-  { id: 'u-jordan', displayName: 'Jordan', memberSince: 'Spring 2025', itemsLent: 63 },
-  { id: 'u-priya', displayName: 'Priya', memberSince: 'Fall 2025', itemsLent: 15 },
-  { id: 'u-sam', displayName: 'Sam', memberSince: 'Fall 2024', itemsLent: 12 },
-  { id: 'u-leo', displayName: 'Leo', memberSince: 'Spring 2025', itemsLent: 24 },
-  { id: 'u-aisha', displayName: 'Aisha', memberSince: 'Fall 2025', itemsLent: 26 },
-  { id: 'u-chris', displayName: 'Chris', memberSince: 'Spring 2026', itemsLent: 17 },
-  { id: 'u-nina', displayName: 'Nina', memberSince: 'Fall 2024', itemsLent: 46 },
-  { id: 'u-omar', displayName: 'Omar', memberSince: 'Spring 2026', itemsLent: 39 },
-]
-
-export function firstNameOnly(name: string | null | undefined): string {
-  return name?.trim().split(/\s+/)[0] ?? ''
+/**
+ * Names for the demo lenders behind the starter listings, used only if the
+ * API hasn't sent a name. Matches backend/src/users/demoUsers.ts.
+ */
+const demoNames: Record<string, string> = {
+  'u-maya': 'Maya R.',
+  'u-jordan': 'Jordan K.',
+  'u-priya': 'Priya S.',
+  'u-sam': 'Sam T.',
+  'u-leo': 'Leo M.',
+  'u-aisha': 'Aisha B.',
+  'u-chris': 'Chris D.',
+  'u-nina': 'Nina W.',
+  'u-omar': 'Omar F.',
 }
 
-export function getUser(id: string): User | undefined {
-  return users.find((u) => u.id === id)
+/** The full name, tidied. Only shown on profile pages. */
+export function fullName(name: string | null | undefined): string {
+  return name?.trim().replace(/\s+/g, ' ') ?? ''
 }
 
-/** The lender's name: their profile name from the API, else the bundled demo name. */
+/**
+ * First name and last initial ("Maya R." -> "Maya R."), used everywhere
+ * except profile pages. Safe to apply twice: "Maya R." stays "Maya R.".
+ */
+export function shortName(name: string | null | undefined): string {
+  const parts = fullName(name).split(' ').filter(Boolean)
+  if (parts.length === 0) return ''
+  if (parts.length === 1) return parts[0]
+  const initial = Array.from(parts[parts.length - 1])[0]?.toUpperCase() ?? ''
+  return `${parts[0]} ${initial}.`
+}
+
+/** A first initial for avatar placeholders. */
+export const initialOf = (name: string) => Array.from(fullName(name))[0]?.toUpperCase() ?? ''
+
+/** The lender's short name: from the API, else the bundled demo name. */
 export function lenderNameOf(item: { lenderId: string; lenderName?: string }): string {
-  return firstNameOnly(item.lenderName) || getUserName(item.lenderId)
+  return shortName(item.lenderName) || getUserName(item.lenderId)
 }
 
 export function getUserName(id: string): string {
-  return firstNameOnly(getUser(id)?.displayName) || 'A student'
+  return shortName(demoNames[id]) || 'A student'
 }

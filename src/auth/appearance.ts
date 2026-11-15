@@ -57,7 +57,10 @@ const accountModalElements: Elements = {
   profileSectionTitleText: "clerk-section-title",
   profileSectionPrimaryButton: "btn btn--ghost btn--sm clerk-ghost-btn",
   badge: "tag clerk-badge",
-  menuButton: "icon-btn",
+  // Only the "⋯" trigger is an icon button. Plain `menuButton` also covers
+  // labelled triggers like "Add two-step verification", which would squash
+  // into the 30px circle.
+  menuButtonEllipsis: "icon-btn",
   menuList: "clerk-menu",
   menuItem: "clerk-menu-item",
   avatarImageActionsUpload: "btn btn--secondary btn--sm",

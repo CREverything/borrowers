@@ -2,25 +2,26 @@ import { Bell, ClipboardList, LogOut, Package, UserRound } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import type { AuthUser } from "../auth/AuthContext";
 import { useAuthState } from "../auth/AuthContext";
+import { initialOf } from "../data/users";
 import { navigate, paths } from "../router";
 
-export const initialsOf = (name: string) =>
-  name.trim().split(/\s+/)[0]?.[0]?.toUpperCase() ?? "";
-
-export function ProfileAvatar({
-  user,
+/** A round photo, or the first initial when there's no photo (or it fails to load). */
+export function Avatar({
+  name,
+  imageUrl,
   size = 40,
 }: {
-  user: AuthUser;
+  name: string;
+  imageUrl: string | null;
   size?: number;
 }) {
   const [broken, setBroken] = useState(false);
   const style = { width: size, height: size, fontSize: size * 0.38 };
-  if (user.imageUrl && !broken) {
+  if (imageUrl && !broken) {
     return (
       <img
         className="avatar avatar--image"
-        src={user.imageUrl}
+        src={imageUrl}
         alt=""
         style={style}
         referrerPolicy="no-referrer"
@@ -30,9 +31,13 @@ export function ProfileAvatar({
   }
   return (
     <span className="avatar" aria-hidden="true" style={style}>
-      {initialsOf(user.name)}
+      {initialOf(name)}
     </span>
   );
+}
+
+export function ProfileAvatar({ user, size = 40 }: { user: AuthUser; size?: number }) {
+  return <Avatar name={user.name} imageUrl={user.imageUrl} size={size} />;
 }
 
 export default function UserMenu({ user }: { user: AuthUser }) {

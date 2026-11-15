@@ -1,6 +1,7 @@
 import { MessageSquareText } from "lucide-react";
 import { useEffect, useState } from "react";
-import { firstNameOnly } from "../data/users";
+import { shortName } from "../data/users";
+import { paths } from "../router";
 import { formatShortDate, toISODate } from "../lib/dates";
 import type { Item, Review } from "../types";
 import { Stars } from "./StarRating";
@@ -48,7 +49,13 @@ export default function ItemReviews({ item }: { item: Item }) {
             <li key={r.id} className="review">
               <div className="review__top">
                 <Stars value={r.rating} />
-                <strong>{firstNameOnly(r.reviewerName) || "A student"}</strong>
+                {r.reviewerId ? (
+                  <a className="review__author" href={paths.user(r.reviewerId)}>
+                    {shortName(r.reviewerName) || "A student"}
+                  </a>
+                ) : (
+                  <strong>{shortName(r.reviewerName) || "A student"}</strong>
+                )}
                 <span className="muted small">
                   {formatShortDate(toISODate(new Date(r.createdAt)))}
                 </span>

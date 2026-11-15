@@ -21,7 +21,9 @@ import RangeCalendar from "../components/RangeCalendar";
 import { useGatedPlaceholder, useRequireAuth } from "../components/LoginPrompt";
 import RatingInline from "../components/RatingInline";
 import { getCategoryLabel } from "../data/categories";
-import { firstNameOnly, getUser } from "../data/users";
+import { lenderNameOf } from "../data/users";
+import { usePublicProfile } from "../hooks/usePublicProfile";
+import { Avatar } from "../components/UserMenu";
 import { useItems } from "../hooks/useItems";
 import { useBalance, useRequests } from "../hooks/useRequests";
 import { getAvailability, upcomingBookings } from "../lib/availability";
@@ -30,9 +32,7 @@ import { addDays, formatRange, todayISO } from "../lib/dates";
 import { paths } from "../router";
 import { createBorrowRequest, RequestError } from "../services/requestStore";
 import type { BorrowRequest, Item } from "../types";
-
-const initials = (name: string) =>
-  firstNameOnly(name)[0]?.toUpperCase() ?? "";
+import { itemsLentLabel, memberSince } from "./UserPage";
 
 export default function ItemDetailPage({ id }: { id: number }) {
   const { getItem, status, reload } = useItems();
@@ -77,11 +77,9 @@ function ItemDetail({ item }: { item: Item }) {
   const pendingForItem = incoming.filter(
     (r) => r.itemId === item.id && r.status === "pending",
   ).length;
-  const lender = getUser(item.lenderId);
-  const lenderName =
-    firstNameOnly(item.lenderName) ||
-    firstNameOnly(lender?.displayName) ||
-    "the lender";
+  const lenderProfile = usePublicProfile(item.lenderId, item.rating?.count);
+  const lender = lenderProfile.status === "ready" ? lenderProfile.profile : null;
+  const lenderName = lenderNameOf(item);
   const today = todayISO();
   const availability = getAvailability(item, today);
   const bookings = upcomingBookings(item, today);
@@ -178,20 +176,20 @@ function ItemDetail({ item }: { item: Item }) {
             <div className="detail__panels">
               <div className="panel">
                 <h2>Lender</h2>
-                <div className="lender">
-                  <span className="avatar" aria-hidden="true">
-                    {initials(lenderName)}
-                  </span>
+                <a className="lender" href={paths.user(item.lenderId)}>
+                  <Avatar name={lenderName} imageUrl={lender?.avatarUrl ?? null} size={44} />
                   <div>
-                    <strong>{lenderName}</strong>
-                    {lender && (
+                    <strong className="lender__name">{lenderName}</strong>
+                    {lender ? (
                       <p className="muted">
-                        Lending since {lender.memberSince} · {lender.itemsLent}{" "}
-                        items lent
+                        Member since {memberSince(lender.memberSince)} ·{" "}
+                        {itemsLentLabel(lender.itemsLent)}
                       </p>
+                    ) : (
+                      <p className="muted">View profile</p>
                     )}
                   </div>
-                </div>
+                </a>
                 <p className="detail__location">
                   <MapPin size={16} aria-hidden="true" />
                   Pick up near {item.location}

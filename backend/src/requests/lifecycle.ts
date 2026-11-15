@@ -1,5 +1,5 @@
 import type { Pool, PoolClient } from "pg";
-import { firstNameOnly } from "../users/profiles.ts";
+import { shortName } from "../users/profiles.ts";
 import {
   assertReturnTime,
   getRequest,
@@ -129,6 +129,7 @@ export interface Review {
   id: string;
   rating: number;
   comment: string;
+  reviewerId: string;
   reviewerName: string;
   createdAt: string;
 }
@@ -179,10 +180,11 @@ export async function listReviews(pool: Pool, itemId: number): Promise<Review[]>
     id: string;
     rating: number;
     comment: string;
+    borrower_id: string;
     display_name: string | null;
     created_at: Date;
   }>(
-    `select v.id::text, v.rating, v.comment, u.display_name, v.created_at
+    `select v.id::text, v.rating, v.comment, v.borrower_id, u.display_name, v.created_at
      from reviews v left join users u on u.clerk_id = v.borrower_id
      where v.item_id = $1 order by v.created_at desc limit 50`,
     [itemId],
@@ -191,7 +193,8 @@ export async function listReviews(pool: Pool, itemId: number): Promise<Review[]>
     id: r.id,
     rating: r.rating,
     comment: r.comment,
-    reviewerName: firstNameOnly(r.display_name),
+    reviewerId: r.borrower_id,
+    reviewerName: shortName(r.display_name),
     createdAt: r.created_at.toISOString(),
   }));
 }

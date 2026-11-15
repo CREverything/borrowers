@@ -1,7 +1,28 @@
+import {
+  CalendarClock,
+  CircleCheckBig,
+  CircleX,
+  Inbox,
+  PackageCheck,
+  Star,
+  Undo2,
+  type LucideIcon,
+} from "lucide-react";
 import { paths } from "../router";
-import { firstNameOnly } from "../data/users";
-import type { AppNotification } from "../types";
+import { shortName } from "../data/users";
+import type { AppNotification, NotificationKind } from "../types";
 import { formatDateTime, formatRange } from "./dates";
+
+export const notificationIcons: Record<NotificationKind, LucideIcon> = {
+  request_received: Inbox,
+  request_cancelled: Undo2,
+  request_approved: CircleCheckBig,
+  request_declined: CircleX,
+  return_time_changed: CalendarClock,
+  item_returned: PackageCheck,
+  borrower_rated: Star,
+  review_received: Star,
+};
 
 /**
  * Turns a notification's stored facts into a sentence, with times in the
@@ -10,8 +31,8 @@ import { formatDateTime, formatRange } from "./dates";
 export function describeNotification(n: AppNotification): { text: string; href: string } {
   const d = n.data;
   const item = d.itemTitle || "your item";
-  const borrower = firstNameOnly(d.borrowerName) || "A student";
-  const lender = firstNameOnly(d.lenderName) || "The lender";
+  const borrower = shortName(d.borrowerName) || "A student";
+  const lender = shortName(d.lenderName) || "The lender";
   const range = d.startDate && d.endDate ? formatRange({ start: d.startDate, end: d.endDate }) : "";
   const due = d.returnDueAt ? formatDateTime(d.returnDueAt) : "";
   const stars = d.rating ? `${d.rating} ${d.rating === 1 ? "star" : "stars"}` : "";

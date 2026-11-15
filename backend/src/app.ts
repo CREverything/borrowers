@@ -6,6 +6,7 @@ import { healthRouter } from "./routes/health.ts";
 import { createItemsRouter, createMyItemsRouter } from "./routes/items.ts";
 import { createMeRouter } from "./routes/me.ts";
 import { createRequestsRouter } from "./routes/requests.ts";
+import { usersRouter } from "./routes/users.ts";
 import { ensureUserProfile, type FetchProfile } from "./users/profiles.ts";
 
 export interface AppOptions {
@@ -39,6 +40,7 @@ export function createApp({ auth, requireUser: requireUserOverride, fetchProfile
   app.use("/api/items", createItemsRouter(protect));
   app.use("/api/my-items", createMyItemsRouter(protect));
   app.use("/api/me", createMeRouter(protect));
+  app.use("/api/users", usersRouter);
   app.use("/api", createRequestsRouter(protect));
 
   app.use("/api", (_req, res) => {

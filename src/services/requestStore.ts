@@ -1,5 +1,6 @@
 import type { BorrowRequest, EventRequest, ISODate } from "../types";
 import { refreshAccount } from "./accountStore";
+import { refreshActivity } from "./activityStore";
 import { authedFetch } from "./api";
 import { loadItems } from "./itemsStore";
 
@@ -113,6 +114,7 @@ export const resetRequests = () => setState(empty);
 /** Reloads after a change, and refreshes anything that depends on it. */
 async function afterChange(getToken: GetToken, { items = false, balance = false } = {}) {
   if (state.userId) await loadRequests(state.userId, getToken);
+  void refreshActivity(getToken);
   if (items) void loadItems(true);
   if (balance) void refreshAccount(getToken);
 }

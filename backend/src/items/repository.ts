@@ -1,5 +1,5 @@
 import type { Pool } from "pg";
-import { firstNameOnly } from "../users/profiles.ts";
+import { shortName } from "../users/profiles.ts";
 import type { CategoryId, DateRange, Item, ItemCondition, ItemStatus } from "./types.ts";
 import type { ListingInput, ListingPatch } from "./validation.ts";
 
@@ -54,7 +54,7 @@ export function toItem(row: ItemRow): Item {
     category: row.category,
     condition: row.condition,
     lenderId: row.lender_id,
-    lenderName: firstNameOnly(row.lender_name),
+    lenderName: shortName(row.lender_name),
     location: row.location,
     switchiesPerDay: row.switchies_per_day,
     iconKey: row.icon_key,
@@ -77,6 +77,15 @@ export function toItem(row: ItemRow): Item {
 /** Public marketplace: active listings only. */
 export async function listActiveItems(pool: Pool): Promise<Item[]> {
   const result = await pool.query<ItemRow>(`${SELECT_ITEM} where i.status = 'active' order by i.id`);
+  return result.rows.map(toItem);
+}
+
+/** Someone's active listings, for their public profile. */
+export async function listActiveItemsByLender(pool: Pool, lenderId: string): Promise<Item[]> {
+  const result = await pool.query<ItemRow>(
+    `${SELECT_ITEM} where i.lender_id = $1 and i.status = 'active' order by i.created_at desc, i.id desc`,
+    [lenderId],
+  );
   return result.rows.map(toItem);
 }
 

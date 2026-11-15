@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import ActivityBar from "./components/ActivityBar";
 import Header from "./components/Header";
 import { useAccountSync } from "./hooks/useRequests";
 import { defaultFilters, type MarketplaceFilters } from "./lib/marketplace";
@@ -13,6 +14,8 @@ import NotificationsPage from "./pages/NotificationsPage";
 import ProfilePage from "./pages/ProfilePage";
 import RequestsPage from "./pages/RequestsPage";
 import SwitchiesPage from "./pages/SwitchiesPage";
+import UserPage from "./pages/UserPage";
+import NotificationToasts from "./components/NotificationToasts";
 import { scrollToSection } from "./lib/scroll";
 import { useRoute, type Route } from "./router";
 
@@ -43,9 +46,11 @@ export default function App() {
       case "switchies":
         return <SwitchiesPage />;
       case "requests":
-        return <RequestsPage tab={r.tab} />;
+        return <RequestsPage tab={r.tab} section={r.section} />;
       case "profile":
         return <ProfilePage />;
+      case "user":
+        return <UserPage id={r.id} />;
       case "lend":
         return <LendPage />;
       case "notifications":
@@ -72,7 +77,15 @@ export default function App() {
 
   return (
     <>
-      <Header route={route} />
+      {/* Header and activity bar stick together; see ActivityBar for the collapse. */}
+      <div className="site-top">
+        <Header route={route} />
+        <ActivityBar route={route} />
+        {/* Pop-ups hang from the top right, just under the header and bar. */}
+        <NotificationToasts hidden={route.name === "notifications"} />
+      </div>
+      {/* Holds the activity bar's space at the top of the page (0 when it's not shown). */}
+      <div className="activity-spacer" aria-hidden="true" />
       <main>{renderPage(route)}</main>
       <footer className="footer">
         <div className="container footer__inner">
