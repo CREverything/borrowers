@@ -49,6 +49,7 @@ export default defineConfig(({ mode }) => {
   // Plugin middleware runs before Vite's proxy, so /api/plan-event is still
   // handled above.
   const proxy = {
+    "/api/messaging/socket.io": { target: env.BACKEND_URL || DEFAULT_BACKEND_URL, changeOrigin: true, ws: true },
     "/api": { target: env.BACKEND_URL || DEFAULT_BACKEND_URL, changeOrigin: true },
   };
 

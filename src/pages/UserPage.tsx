@@ -1,5 +1,6 @@
-import { ArrowLeft, Package, UserRoundX } from "lucide-react";
+import { ArrowLeft, MessageCircle, Package, UserRoundX } from "lucide-react";
 import { useAuthState } from "../auth/AuthContext";
+import { useMessaging } from "../components/MessagingProvider";
 import ItemCard from "../components/ItemCard";
 import { Stars } from "../components/StarRating";
 import { Avatar } from "../components/UserMenu";
@@ -15,6 +16,7 @@ export const itemsLentLabel = (n: number) => `${n} ${n === 1 ? "item" : "items"}
 /** Someone's public profile: full name, how much they've lent, and their listings. */
 export default function UserPage({ id }: { id: string }) {
   const { user } = useAuthState();
+  const messaging = useMessaging();
   const load = usePublicProfile(id);
 
   if (load.status === "loading") {
@@ -62,7 +64,20 @@ export default function UserPage({ id }: { id: string }) {
       <header className="profile">
         <Avatar name={name} imageUrl={profile.avatarUrl} size={88} />
         <div>
-          <h1>{name}</h1>
+          <div className="profile__name-row">
+            <h1>{name}</h1>
+            {!isMe && (
+              <button
+                type="button"
+                className="btn btn--primary"
+                disabled={messaging.loading}
+                onClick={() => messaging.startDirect(profile.id)}
+              >
+                <MessageCircle size={18} aria-hidden="true" />
+                Message
+              </button>
+            )}
+          </div>
           <p className="muted small">Member since {memberSince(profile.memberSince)}</p>
           {isMe && (
             <p className="small">

@@ -156,6 +156,7 @@ export interface BorrowRequest {
 }
 
 export type NotificationKind =
+  | 'message_received'
   | 'request_received'
   | 'request_cancelled'
   | 'request_approved'
@@ -180,6 +181,10 @@ export interface AppNotification {
   kind: NotificationKind
   role: 'borrower' | 'lender'
   data: {
+    conversationId?: string
+    messageId?: string
+    senderName?: string
+    preview?: string
     itemTitle?: string
     borrowerName?: string
     lenderName?: string

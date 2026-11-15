@@ -32,6 +32,7 @@ export type Route =
   | { name: "user"; id: string }
   | { name: "lend" }
   | { name: "notifications" }
+  | { name: "messages"; conversationId: string }
   | { name: "my-listings"; createdId: number | null }
   | { name: "edit-listing"; id: number }
   /** returnTo is null when the URL has no ?return= (one of Clerk's own steps). */
@@ -66,6 +67,7 @@ export const paths = {
   user: (id: string) => `/#/user/${encodeURIComponent(id)}`,
   lend: "/#/lend",
   notifications: "/#/notifications",
+  conversation: (id: string) => `/#/messages/${encodeURIComponent(id)}`,
   myListings: (createdId?: number) =>
     createdId ? `/#/my-listings?created=${createdId}` : "/#/my-listings",
   editListing: (id: number) => `/#/my-listings/${id}/edit`,
@@ -170,6 +172,9 @@ export function parseHash(hash: string): Route {
     }
     case "lend":
       return { name: "lend" };
+    case "messages":
+      if (/^[0-9a-f-]{36}$/i.test(second ?? "")) return { name: "messages", conversationId: second };
+      break;
     case "notifications":
       return { name: "notifications" };
     case "my-listings": {

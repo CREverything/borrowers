@@ -1,14 +1,16 @@
-import { Bell, Plus } from "lucide-react";
+import { Bell, MessageCircle, Plus } from "lucide-react";
 import type { MouseEvent } from "react";
 import { useAuthState } from "../auth/AuthContext";
 import { scrollToSection, scrollToTop } from "../lib/scroll";
 import { navigate, paths, type Route } from "../router";
 import { useStartListing } from "./LoginPrompt";
+import { useMessaging } from "./MessagingProvider";
 import SwitchiesInfo from "./SwitchiesInfo";
 import UserMenu from "./UserMenu";
 import { useActivity, useNotifications } from "../hooks/useRequests";
 
 export default function Header({ route }: { route: Route }) {
+  const messaging = useMessaging();
   const startListing = useStartListing();
   const { status, user } = useAuthState();
   const unread = useNotifications().unreadCount;
@@ -96,6 +98,23 @@ export default function Header({ route }: { route: Route }) {
             </a>
           )}
 
+          {status === "signed-in" && (
+            <button
+              type="button"
+              className={`bell${messaging.inboxOpen ? " bell--active" : ""}`}
+              onClick={messaging.toggleInbox}
+              aria-label={`Messages${messaging.unreadCount ? `, ${messaging.unreadCount} unread` : ""}`}
+              aria-expanded={messaging.inboxOpen}
+              aria-controls="messages-inbox"
+            >
+              <MessageCircle size={20} aria-hidden="true" />
+              {messaging.unreadCount > 0 && (
+                <span className="bell__count" aria-hidden="true">
+                  {messaging.unreadCount > 9 ? "9+" : messaging.unreadCount}
+                </span>
+              )}
+            </button>
+          )}
           <SwitchiesInfo />
 
           {(status === "signed-out" || status === "unavailable") &&

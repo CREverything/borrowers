@@ -1,3 +1,4 @@
+import { createMessagingRouter } from "./routes/messaging.ts";
 import express, { type ErrorRequestHandler, type RequestHandler } from "express";
 import { authenticatedUserId, createProfileFetcher, createRequireUser } from "./auth.ts";
 import type { AuthConfig } from "./config.ts";
@@ -38,6 +39,7 @@ export function createApp({ auth, requireUser: requireUserOverride, fetchProfile
   app.disable("x-powered-by");
   app.use(express.json({ limit: "32kb" }));
 
+  app.use("/api/messaging", createMessagingRouter(protect));
   app.use("/api/health", healthRouter);
   app.use("/api/items", createItemsRouter(protect));
   app.use("/api/my-items", createMyItemsRouter(protect));
